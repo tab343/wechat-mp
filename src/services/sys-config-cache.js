@@ -1,16 +1,15 @@
 const configDb = require("./db/sys_config-db");
-const { isConfigured } = require("./db/d1-client");
 
 let cache = {};
 let loaded = false;
 
 async function loadFromDatabase() {
-  if (!isConfigured()) {
-    console.warn("[sys-config] D1 未配置，跳过加载");
-    return false;
-  }
   try {
     const rows = await configDb.findAll();
+    if (!rows || rows.length === 0) {
+      console.warn("[sys-config] 数据库中无配置数据");
+      return false;
+    }
     cache = {};
     for (const row of rows) {
       cache[row.config_key] = row.config_value;

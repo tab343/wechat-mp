@@ -5,10 +5,16 @@
  * 未加载时回退到 process.env 环境变量。
  */
 
-const sysConfigCache = require("../services/sys-config-cache");
+let _sysConfigCache = null;
+function getCache() {
+  if (!_sysConfigCache) {
+    _sysConfigCache = require("../services/sys-config-cache");
+  }
+  return _sysConfigCache;
+}
 
 function getConfig(key, envKey) {
-  const dbVal = sysConfigCache.get(key);
+  const dbVal = getCache().get(key);
   if (dbVal) return dbVal;
   return process.env[envKey] || "";
 }
