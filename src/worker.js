@@ -1,4 +1,3 @@
-const { parseStringPromise } = require("xml2js");
 const { handleText, handleImage, handleVoice, handleVideo, handleLocation, handleLink, handleEvent } = require("./services/handlers");
 const keywordCache = require("./services/keyword-cache");
 const apiConfigCache = require("./services/api-config-cache");
@@ -16,30 +15,28 @@ async function ensureInit() {
   initialized = true;
 }
 
-addEventListener("fetch", (event) => {
-  event.respondWith(handleRequest(event.request, event.env));
-});
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const path = url.pathname;
 
-async function handleRequest(request, env) {
-  const url = new URL(request.url);
-  const path = url.pathname;
+    if (request.method === "GET" && path === "/wechat") {
+      return handleVerify(request);
+    }
 
-  if (request.method === "GET" && path === "/wechat") {
-    return handleVerify(request);
-  }
+    if (request.method === "POST" && path === "/wechat") {
+      return handleMessage(request);
+    }
 
-  if (request.method === "POST" && path === "/wechat") {
-    return handleMessage(request);
-  }
+    if (path === "/api/health") {
+      return new Response(JSON.stringify({ status: "ok" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-  if (path === "/api/health") {
-    return new Response(JSON.stringify({ status: "ok" }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  return new Response("WeChat MP Service", { status: 200 });
-}
+    return new Response("WeChat MP Service", { status: 200 });
+  },
+};
 
 async function handleVerify(request) {
   const url = new URL(request.url);
@@ -67,37 +64,7 @@ async function handleMessage(request) {
     await ensureInit();
 
     const xml = await request.text();
-    const data = await parseStringPromise(xml);
-    const raw = data.xml;
-
-    const msg = {
-      ToUserName: raw.ToUserName[0],
-      FromUserName: raw.FromUserName[0],
-      CreateTime: parseInt(raw.CreateTime[0]),
-      MsgType: raw.MsgType[0],
-    };
-
-    if (raw.Content) msg.Content = raw.Content[0];
-    if (raw.MsgId) msg.MsgId = raw.MsgId[0];
-    if (raw.Event) msg.Event = raw.Event[0];
-    if (raw.EventKey) msg.EventKey = raw.EventKey[0];
-    if (raw.Ticket) msg.Ticket = raw.Ticket[0];
-    if (raw.Latitude) msg.Latitude = raw.Latitude[0];
-    if (raw.Longitude) msg.Longitude = raw.Longitude[0];
-    if (raw.Precision) msg.Precision = raw.Precision[0];
-    if (raw.Status) msg.Status = raw.Status[0];
-    if (raw.MediaId) msg.MediaId = raw.MediaId[0];
-    if (raw.PicUrl) msg.PicUrl = raw.PicUrl[0];
-    if (raw.Format) msg.Format = raw.Format[0];
-    if (raw.Recognition) msg.Recognition = raw.Recognition[0];
-    if (raw.ThumbMediaId) msg.ThumbMediaId = raw.ThumbMediaId[0];
-    if (raw.Location_X) msg.Location_X = raw.Location_X[0];
-    if (raw.Location_Y) msg.Location_Y = raw.Location_Y[0];
-    if (raw.Scale) msg.Scale = raw.Scale[0];
-    if (raw.Label) msg.Label = raw.Label[0];
-    if (raw.Title) msg.Title = raw.Title[0];
-    if (raw.Description) msg.Description = raw.Description[0];
-    if (raw.Url) msg.Url = raw.Url[0];
+    const msg = parseWechatXml(xml);
 
     const handlers = {
       text: handleText,
@@ -130,6 +97,21 @@ async function handleMessage(request) {
     console.error("[worker] 请求处理失败:", err.message);
     return new Response("error", { status: 500 });
   }
+}
+
+function parseWechatXml(xml) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, "text/xml");
+  const root = doc.documentElement;
+  const msg = {};
+
+  const children = root.children;
+  for (let i = 0; i < children.length; i++) {
+    const el = children[i];
+    msg[el.tagName] = el.textContent || "";
+  }
+
+  return msg;
 }
 
 function buildReplyXml(msg, reply) {

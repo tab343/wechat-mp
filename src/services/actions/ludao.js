@@ -1,4 +1,3 @@
-const bwipjs = require("bwip-js");
 const { getApiConfig, refreshApiConfig } = require("../api-config-cache");
 const { uploadImage } = require("../wechat/media-upload");
 
@@ -13,6 +12,7 @@ const CACHE_TTL = 60 * 1000;
  * @returns {Buffer} PNG 图片 Buffer
  */
 async function generateBarcode(code) {
+  const bwipjs = require("bwip-js");
   return bwipjs.toBuffer({
     bcid: 'code128',
     text: code,
