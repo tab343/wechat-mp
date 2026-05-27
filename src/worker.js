@@ -210,22 +210,14 @@ function base64Decode(str) {
 }
 
 function parseWechatXml(xml) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xml, "text/xml");
-  const root = doc.documentElement;
-
-  if (!root) {
-    console.error("[parse] XML 解析失败，docElement 为空");
-    return {};
-  }
-
   const msg = {};
-  const children = root.children;
-  for (let i = 0; i < children.length; i++) {
-    const el = children[i];
-    msg[el.tagName] = el.textContent || "";
+  const tagRegex = /<(\w+)>\s*(?:\<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/\1>/gi;
+  let match;
+  while ((match = tagRegex.exec(xml)) !== null) {
+    if (!msg[match[1]]) {
+      msg[match[1]] = match[2];
+    }
   }
-
   console.log("[parse] 解析结果:", JSON.stringify(msg));
   return msg;
 }
