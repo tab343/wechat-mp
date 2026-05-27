@@ -178,16 +178,19 @@ async function handleMessage(request) {
 
 async function decryptMsg(rawXml) {
   let encodingAESKey = sysConfigCache.get("WECHAT_ENCODING_AES_KEY");
-  console.log("[decrypt] sysConfigCache.get AESKey:", encodingAESKey ? "已获取 (长度=" + encodingAESKey.length + ")" : "为空");
-  console.log("[decrypt] 缓存全部 keys:", JSON.stringify(Object.keys(sysConfigCache.getAll())));
+  console.log("[decrypt] 缓存 AESKey:", encodingAESKey ? "有 (len=" + encodingAESKey.length + ")" : "无");
 
   if (!encodingAESKey) {
-    console.log("[decrypt] 尝试从数据库重新加载...");
-    const ok = await sysConfigCache.refresh();
-    console.log("[decrypt] refresh 结果:", ok);
+    console.log("[decrypt] 缓存为空，尝试 process.env 回退...");
+    encodingAESKey = process.env.WECHAT_ENCODING_AES_KEY || "";
+    console.log("[decrypt] process.env AESKey:", encodingAESKey ? "有 (len=" + encodingAESKey.length + ")" : "无");
+  }
+
+  if (!encodingAESKey) {
+    console.log("[decrypt] 缓存+env 都无，尝试刷新缓存...");
+    await sysConfigCache.refresh();
     encodingAESKey = sysConfigCache.get("WECHAT_ENCODING_AES_KEY");
-    console.log("[decrypt] 刷新后 sysConfigCache.get AESKey:", encodingAESKey ? "已获取 (长度=" + encodingAESKey.length + ")" : "仍然为空");
-    console.log("[decrypt] 刷新后全部 keys:", JSON.stringify(Object.keys(sysConfigCache.getAll())));
+    console.log("[decrypt] 刷新后 AESKey:", encodingAESKey ? "有 (len=" + encodingAESKey.length + ")" : "无");
   }
 
   if (!encodingAESKey) {
