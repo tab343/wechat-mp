@@ -17,26 +17,31 @@ async function ensureInit() {
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const path = url.pathname;
+    try {
+      const url = new URL(request.url);
+      const path = url.pathname;
 
-    const isWechatPath = path === "/" || path === "/wechat";
+      const isWechatPath = path === "/" || path === "/wechat";
 
-    if (request.method === "GET" && isWechatPath) {
-      return handleVerify(request);
+      if (request.method === "GET" && isWechatPath) {
+        return handleVerify(request);
+      }
+
+      if (request.method === "POST" && isWechatPath) {
+        return handleMessage(request);
+      }
+
+      if (path === "/api/health") {
+        return new Response(JSON.stringify({ status: "ok" }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response("WeChat MP Service", { status: 200 });
+    } catch (err) {
+      console.error("[worker] 顶层异常:", err.message, err.stack);
+      return new Response("Internal Server Error", { status: 500 });
     }
-
-    if (request.method === "POST" && isWechatPath) {
-      return handleMessage(request);
-    }
-
-    if (path === "/api/health") {
-      return new Response(JSON.stringify({ status: "ok" }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response("WeChat MP Service", { status: 200 });
   },
 };
 
@@ -73,7 +78,7 @@ async function handleMessage(request) {
     if (msg.Encrypt) {
       console.log("[worker] 检测到加密消息，开始解密...");
       try {
-        msg = decryptMsg(msg, xml);
+        msg = await decryptMsg(xml);
       } catch (err) {
         console.error("[worker] AES 解密失败:", err.message);
         return new Response("success", { status: 200 });
@@ -115,7 +120,7 @@ async function handleMessage(request) {
   }
 }
 
-function decryptMsg(encryptedMsg, rawXml) {
+async function decryptMsg(rawXml) {
   const encodingAESKey = process.env.WECHAT_ENCODING_AES_KEY || "";
   if (!encodingAESKey) {
     throw new Error("未配置 WECHAT_ENCODING_AES_KEY 环境变量");
@@ -135,15 +140,14 @@ function decryptMsg(encryptedMsg, rawXml) {
   const encryptedBuffer = base64Decode(encryptStr);
   const iv = keyBuffer.slice(0, 16);
 
-  return crypto.subtle.importKey("raw", keyBuffer, { name: "AES-CBC" }, false, ["decrypt"])
-    .then((key) => crypto.subtle.decrypt({ name: "AES-CBC", iv }, key, encryptedBuffer))
-    .then((decrypted) => {
-      const buf = new Uint8Array(decrypted);
-      const unpadded = pkcs7Unpad(buf);
-      const msgLen = (unpadded[16] << 24) | (unpadded[17] << 16) | (unpadded[18] << 8) | unpadded[19];
-      const msgStr = new TextDecoder().decode(unpadded.slice(20, 20 + msgLen));
-      return parseWechatXml(msgStr);
-    });
+  const key = await crypto.subtle.importKey("raw", keyBuffer, { name: "AES-CBC" }, false, ["decrypt"]);
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, key, encryptedBuffer);
+
+  const buf = new Uint8Array(decrypted);
+  const unpadded = pkcs7Unpad(buf);
+  const msgLen = (unpadded[16] << 24) | (unpadded[17] << 16) | (unpadded[18] << 8) | unpadded[19];
+  const msgStr = new TextDecoder().decode(unpadded.slice(20, 20 + msgLen));
+  return parseWechatXml(msgStr);
 }
 
 function pkcs7Unpad(buf) {
