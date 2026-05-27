@@ -1,10 +1,13 @@
 /**
- * Cloudflare Pages Function - 微信公众号接口
- * 处理所有请求
+ * Cloudflare Worker - 微信公众号服务
+ * 使用原生 Worker API 实现微信公众号功能
  */
 
-export async function onRequest(context) {
-  const { request, env } = context;
+addEventListener('fetch', (event) => {
+  event.respondWith(handleRequest(event.request, event.env));
+});
+
+async function handleRequest(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
   
@@ -16,6 +19,11 @@ export async function onRequest(context) {
   // 微信消息接收（POST 请求）
   if (request.method === 'POST' && path === '/wechat') {
     return handlePostRequest(request, env);
+  }
+  
+  // API 路由
+  if (path.startsWith('/api/')) {
+    return handleApiRequest(request, env);
   }
   
   // 默认响应
@@ -59,8 +67,22 @@ async function handlePostRequest(request, env) {
     
     console.log(`收到消息：${msg.MsgType} - ${msg.Content || ''}`);
     
-    // 简单回复
-    const reply = `你发送了：${msg.Content}`;
+    // 根据消息内容处理
+    let reply = 'success';
+    if (msg.Content && msg.Content.trim()) {
+      const content = msg.Content.trim().toLowerCase();
+      
+      if (content === '帮助' || content === 'help') {
+        reply = '可用命令：\n- 帮助：显示帮助信息\n- 菜单：查看菜单\n- 鹿岛：获取会员码';
+      } else if (content === '菜单' || content === 'menu') {
+        reply = '菜单功能开发中...';
+      } else if (content === '鹿岛' || content === 'ludao') {
+        reply = await handleLudaoRequest(env);
+      } else {
+        reply = `你发送了：${msg.Content}`;
+      }
+    }
+    
     const xmlReply = buildReplyXml(msg, reply);
     
     return new Response(xmlReply, {
@@ -71,6 +93,65 @@ async function handlePostRequest(request, env) {
     console.error('处理消息失败:', error);
     return new Response('error', { status: 500 });
   }
+}
+
+async function handleLudaoRequest(env) {
+  try {
+    const apiConfig = await getLudaoConfig(env);
+    if (!apiConfig) {
+      return '鹿岛 API 配置未设置';
+    }
+    
+    const response = await fetch(apiConfig.base_url, {
+      method: apiConfig.request_method || 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [apiConfig.param_key]: apiConfig.param_value,
+        ...(apiConfig.extra_headers ? JSON.parse(apiConfig.extra_headers) : {})
+      },
+      body: apiConfig.extra_body ? apiConfig.extra_body : undefined
+    });
+    
+    const data = await response.json();
+    
+    if (data.code === 200 && data.data?.code) {
+      return `鹿岛会员码：${data.data.code}`;
+    } else {
+      return `获取会员码失败：${data.msg || '未知错误'}`;
+    }
+  } catch (error) {
+    console.error('鹿岛 API 调用失败:', error);
+    return `获取会员码失败：${error.message}`;
+  }
+}
+
+async function getLudaoConfig(env) {
+  try {
+    // 从 D1 数据库获取配置
+    if (env.DB) {
+      const result = await env.DB.prepare('SELECT * FROM sys_api_info WHERE name = ?').bind('ludao_api').first();
+      return result;
+    }
+    return null;
+  } catch (error) {
+    console.error('获取 API 配置失败:', error);
+    return null;
+  }
+}
+
+async function handleApiRequest(request, env) {
+  const url = new URL(request.url);
+  const path = url.pathname;
+  
+  // 健康检查
+  if (path === '/api/health') {
+    return new Response(JSON.stringify({ status: 'ok', timestamp: Date.now() }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200
+    });
+  }
+  
+  return new Response('API not found', { status: 404 });
 }
 
 async function parseXml(xml) {
