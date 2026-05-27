@@ -3,7 +3,6 @@ const { parseStringPromise } = require("xml2js");
 const os = require("os");
 const config = require("./config");
 const { isConfigured } = require("./services/db/d1-client");
-const { initDatabase } = require("./services/db/init-db");
 const keywordCache = require("./services/keyword-cache");
 const apiConfigCache = require("./services/api-config-cache");
 const { registerSysActions } = require("./services/actions/sys-actions");
@@ -254,10 +253,7 @@ app.get("/api/api-configs/:name/status", async (req, res) => {
 
 // ── 初始化并启动服务 ─────────────────────────────────────
 async function bootstrap() {
-  try {
-    console.log("[启动] 正在初始化数据库...");
-    await initDatabase();
-    
+  try {    
     console.log("[启动] 正在加载关键字缓存...");
     await keywordCache.loadFromDatabase();
     
