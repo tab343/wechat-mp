@@ -38,7 +38,7 @@ app.get(config.path, async (req, res) => {
 
   const checkSignature = () => {
     const arr = [config.token, timestamp, nonce].sort();
-    const hash = require("crypto").createHash("sha1").update(arr.join("")).digest("hex");
+    const hash = require("node:crypto").createHash("sha1").update(arr.join("")).digest("hex");
     return hash === signature;
   };
 

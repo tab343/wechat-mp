@@ -1,4 +1,3 @@
-const axios = require('axios');
 const config = require('../../config');
 
 let accessToken = null;
@@ -30,22 +29,23 @@ async function getAccessToken() {
   fetching = true;
 
   try {
-    const url = 'https://api.weixin.qq.com/cgi-bin/token';
-    const params = {
+    const params = new URLSearchParams({
       grant_type: 'client_credential',
       appid: config.appID,
       secret: config.appSecret
-    };
+    });
+    const url = `https://api.weixin.qq.com/cgi-bin/token?${params.toString()}`;
 
-    const response = await axios.get(url, { params });
+    const res = await fetch(url);
+    const data = await res.json();
     
-    if (response.data.errcode) {
-      throw new Error(`获取 access_token 失败: ${response.data.errmsg}`);
+    if (data.errcode) {
+      throw new Error(`获取 access_token 失败: ${data.errmsg}`);
     }
 
-    accessToken = response.data.access_token;
+    accessToken = data.access_token;
     // 设置过期时间（提前10分钟刷新，避免网络延迟）
-    expiresAt = Date.now() + (response.data.expires_in - 600) * 1000;
+    expiresAt = Date.now() + (data.expires_in - 600) * 1000;
     
     console.log(`[access-token] 获取成功，有效期至: ${new Date(expiresAt).toLocaleString()}`);
     

@@ -1,4 +1,3 @@
-const axios = require("axios");
 const bwipjs = require("bwip-js");
 const { getApiConfig, refreshApiConfig } = require("../api-config-cache");
 const { uploadImage } = require("../wechat/media-upload");
@@ -69,24 +68,27 @@ async function fetchMemberCode() {
     body[param_key] = param_value;
   }
 
-  const response = await axios({
-    url: base_url,
-    method: request_method.toLowerCase(),
-    headers,
-    data: body
-  });
+  const fetchOptions = {
+    method: request_method.toUpperCase(),
+    headers: { 'Content-Type': 'application/json', ...headers },
+  };
+  if (request_method.toUpperCase() !== 'GET' && request_method.toUpperCase() !== 'HEAD') {
+    fetchOptions.body = JSON.stringify(body);
+  }
 
-  console.log("[ludao] API 响应状态码:", response.status);
-  console.log("[ludao] API 响应头:", JSON.stringify(response.headers, null, 2));
-  console.log("[ludao] API 响应数据:", JSON.stringify(response.data, null, 2));
+  const res = await fetch(base_url, fetchOptions);
+  const respData = await res.json();
 
-  if (response.data && response.data.code === 200 && response.data.data?.code) {
-    console.log("[ludao] 成功获取会员码:", response.data.data.code);
-    return response.data.data.code;
+  console.log("[ludao] API 响应状态码:", res.status);
+  console.log("[ludao] API 响应数据:", JSON.stringify(respData, null, 2));
+
+  if (respData && respData.code === 200 && respData.data?.code) {
+    console.log("[ludao] 成功获取会员码:", respData.data.code);
+    return respData.data.code;
   }
   
   console.error("[ludao] API 响应不符合预期");
-  throw new Error(response.data?.msg || "获取会员码失败");
+  throw new Error(respData?.msg || "获取会员码失败");
 }
 
 /**
@@ -154,12 +156,6 @@ async function executor(msg) {
 
   } catch (error) {
     console.error("[ludao] 获取会员码失败:", error.message);
-    
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      await refreshApiConfig("ludao_api");
-      return "Token 已过期，请联系管理员更新";
-    }
-    
     return `获取会员码失败：${error.message}`;
   }
 }

@@ -1,4 +1,3 @@
-const axios = require("axios");
 const config = require("../../config");
 
 /**
@@ -31,15 +30,16 @@ async function query(sql, params = []) {
   }
 
   try {
-    const res = await axios.post(apiBase, { sql, params }, {
+    const res = await fetch(apiBase, {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${apiToken}`,
         "Content-Type": "application/json",
       },
-      timeout: 10000,
+      body: JSON.stringify({ sql, params }),
     });
 
-    const body = res.data;
+    const body = await res.json();
     if (!body.success || (body.errors && body.errors.length > 0)) {
       console.error("[d1-client] 请求失败:", body.errors);
       return { success: false, results: [], errors: body.errors };
@@ -74,15 +74,16 @@ async function batch(statements) {
   }
 
   try {
-    const res = await axios.post(apiBase, statements, {
+    const res = await fetch(apiBase, {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${apiToken}`,
         "Content-Type": "application/json",
       },
-      timeout: 15000,
+      body: JSON.stringify(statements),
     });
 
-    const body = res.data;
+    const body = await res.json();
     if (!body.success) {
       console.error("[d1-client] 批量失败:", body.errors);
       return [];

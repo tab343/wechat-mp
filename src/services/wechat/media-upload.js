@@ -11,8 +11,6 @@
  * ```
  */
 
-const axios = require('axios');
-const FormData = require('form-data');
 const { getAccessToken } = require('./access-token');
 
 // 微信 API 基础 URL
@@ -46,21 +44,17 @@ async function uploadImage(imageBuffer, options = {}) {
   const url = buildUploadUrl('image', accessToken);
   
   const form = new FormData();
-  form.append('media', imageBuffer, { 
-    filename,
-    contentType: 'image/png'
-  });
+  form.append('media', new Blob([imageBuffer], { type: 'image/png' }), filename);
   
-  const response = await axios.post(url, form, {
-    headers: form.getHeaders()
-  });
+  const res = await fetch(url, { method: 'POST', body: form });
+  const data = await res.json();
   
-  if (response.data.errcode) {
-    throw new Error(`上传图片失败：${response.data.errmsg} (errcode: ${response.data.errcode})`);
+  if (data.errcode) {
+    throw new Error(`上传图片失败：${data.errmsg} (errcode: ${data.errcode})`);
   }
   
-  console.log(`[media-upload] 图片上传成功，MediaId: ${response.data.media_id}`);
-  return response.data.media_id;
+  console.log(`[media-upload] 图片上传成功，MediaId: ${data.media_id}`);
+  return data.media_id;
 }
 
 /**
@@ -77,21 +71,17 @@ async function uploadVoice(voiceBuffer, options = {}) {
   const url = buildUploadUrl('voice', accessToken);
   
   const form = new FormData();
-  form.append('media', voiceBuffer, { 
-    filename,
-    contentType: 'audio/mpeg'
-  });
+  form.append('media', new Blob([voiceBuffer], { type: 'audio/mpeg' }), filename);
   
-  const response = await axios.post(url, form, {
-    headers: form.getHeaders()
-  });
+  const res = await fetch(url, { method: 'POST', body: form });
+  const data = await res.json();
   
-  if (response.data.errcode) {
-    throw new Error(`上传语音失败：${response.data.errmsg} (errcode: ${response.data.errcode})`);
+  if (data.errcode) {
+    throw new Error(`上传语音失败：${data.errmsg} (errcode: ${data.errcode})`);
   }
   
-  console.log(`[media-upload] 语音上传成功，MediaId: ${response.data.media_id}`);
-  return response.data.media_id;
+  console.log(`[media-upload] 语音上传成功，MediaId: ${data.media_id}`);
+  return data.media_id;
 }
 
 /**
@@ -108,21 +98,17 @@ async function uploadVideo(videoBuffer, options = {}) {
   const url = buildUploadUrl('video', accessToken);
   
   const form = new FormData();
-  form.append('media', videoBuffer, { 
-    filename,
-    contentType: 'video/mp4'
-  });
+  form.append('media', new Blob([videoBuffer], { type: 'video/mp4' }), filename);
   
-  const response = await axios.post(url, form, {
-    headers: form.getHeaders()
-  });
+  const res = await fetch(url, { method: 'POST', body: form });
+  const data = await res.json();
   
-  if (response.data.errcode) {
-    throw new Error(`上传视频失败：${response.data.errmsg} (errcode: ${response.data.errcode})`);
+  if (data.errcode) {
+    throw new Error(`上传视频失败：${data.errmsg} (errcode: ${data.errcode})`);
   }
   
-  console.log(`[media-upload] 视频上传成功，MediaId: ${response.data.media_id}`);
-  return response.data.media_id;
+  console.log(`[media-upload] 视频上传成功，MediaId: ${data.media_id}`);
+  return data.media_id;
 }
 
 /**
@@ -139,21 +125,17 @@ async function uploadThumb(thumbBuffer, options = {}) {
   const url = buildUploadUrl('thumb', accessToken);
   
   const form = new FormData();
-  form.append('media', thumbBuffer, { 
-    filename,
-    contentType: 'image/jpeg'
-  });
+  form.append('media', new Blob([thumbBuffer], { type: 'image/jpeg' }), filename);
   
-  const response = await axios.post(url, form, {
-    headers: form.getHeaders()
-  });
+  const res = await fetch(url, { method: 'POST', body: form });
+  const data = await res.json();
   
-  if (response.data.errcode) {
-    throw new Error(`上传缩略图失败：${response.data.errmsg} (errcode: ${response.data.errcode})`);
+  if (data.errcode) {
+    throw new Error(`上传缩略图失败：${data.errmsg} (errcode: ${data.errcode})`);
   }
   
-  console.log(`[media-upload] 缩略图上传成功，MediaId: ${response.data.media_id}`);
-  return response.data.media_id;
+  console.log(`[media-upload] 缩略图上传成功，MediaId: ${data.media_id}`);
+  return data.media_id;
 }
 
 /**
