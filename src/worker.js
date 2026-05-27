@@ -177,13 +177,17 @@ async function handleMessage(request) {
 }
 
 async function decryptMsg(rawXml) {
-  let encodingAESKey = config.encodingAESKey;
+  let encodingAESKey = sysConfigCache.get("WECHAT_ENCODING_AES_KEY");
+  console.log("[decrypt] sysConfigCache.get AESKey:", encodingAESKey ? "已获取 (长度=" + encodingAESKey.length + ")" : "为空");
+  console.log("[decrypt] 缓存全部 keys:", JSON.stringify(Object.keys(sysConfigCache.getAll())));
 
   if (!encodingAESKey) {
-    console.log("[decrypt] 缓存中无 AESKey，尝试从数据库重新加载...");
-    await sysConfigCache.refresh();
-    encodingAESKey = config.encodingAESKey;
-    console.log("[decrypt] 刷新后 AESKey:", encodingAESKey ? "已获取 (长度=" + encodingAESKey.length + ")" : "仍然为空");
+    console.log("[decrypt] 尝试从数据库重新加载...");
+    const ok = await sysConfigCache.refresh();
+    console.log("[decrypt] refresh 结果:", ok);
+    encodingAESKey = sysConfigCache.get("WECHAT_ENCODING_AES_KEY");
+    console.log("[decrypt] 刷新后 sysConfigCache.get AESKey:", encodingAESKey ? "已获取 (长度=" + encodingAESKey.length + ")" : "仍然为空");
+    console.log("[decrypt] 刷新后全部 keys:", JSON.stringify(Object.keys(sysConfigCache.getAll())));
   }
 
   if (!encodingAESKey) {
