@@ -20,11 +20,13 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    if (request.method === "GET" && path === "/wechat") {
+    const isWechatPath = path === "/" || path === "/wechat";
+
+    if (request.method === "GET" && isWechatPath) {
       return handleVerify(request);
     }
 
-    if (request.method === "POST" && path === "/wechat") {
+    if (request.method === "POST" && isWechatPath) {
       return handleMessage(request);
     }
 
@@ -64,7 +66,21 @@ async function handleMessage(request) {
     await ensureInit();
 
     const xml = await request.text();
-    const msg = parseWechatXml(xml);
+    console.log("[worker] 收到原始 XML:", xml.substring(0, 200));
+
+    let msg = parseWechatXml(xml);
+
+    if (msg.Encrypt) {
+      console.log("[worker] 检测到加密消息，开始解密...");
+      try {
+        msg = decryptMsg(msg, xml);
+      } catch (err) {
+        console.error("[worker] AES 解密失败:", err.message);
+        return new Response("success", { status: 200 });
+      }
+    }
+
+    console.log("[worker] 解析后消息:", JSON.stringify(msg));
 
     const handlers = {
       text: handleText,
@@ -97,6 +113,52 @@ async function handleMessage(request) {
     console.error("[worker] 请求处理失败:", err.message);
     return new Response("error", { status: 500 });
   }
+}
+
+function decryptMsg(encryptedMsg, rawXml) {
+  const encodingAESKey = process.env.WECHAT_ENCODING_AES_KEY || "";
+  if (!encodingAESKey) {
+    throw new Error("未配置 WECHAT_ENCODING_AES_KEY 环境变量");
+  }
+
+  const xmlObj = parseWechatXml(rawXml);
+  const encryptStr = xmlObj.Encrypt;
+  if (!encryptStr) {
+    throw new Error("加密消息中未找到 Encrypt 字段");
+  }
+
+  const keyBuffer = base64Decode(encodingAESKey + "=");
+  if (keyBuffer.byteLength !== 32) {
+    throw new Error(`EncodingAESKey 解码后长度错误: ${keyBuffer.byteLength}`);
+  }
+
+  const encryptedBuffer = base64Decode(encryptStr);
+  const iv = keyBuffer.slice(0, 16);
+
+  return crypto.subtle.importKey("raw", keyBuffer, { name: "AES-CBC" }, false, ["decrypt"])
+    .then((key) => crypto.subtle.decrypt({ name: "AES-CBC", iv }, key, encryptedBuffer))
+    .then((decrypted) => {
+      const buf = new Uint8Array(decrypted);
+      const unpadded = pkcs7Unpad(buf);
+      const msgLen = (unpadded[16] << 24) | (unpadded[17] << 16) | (unpadded[18] << 8) | unpadded[19];
+      const msgStr = new TextDecoder().decode(unpadded.slice(20, 20 + msgLen));
+      return parseWechatXml(msgStr);
+    });
+}
+
+function pkcs7Unpad(buf) {
+  const padLen = buf[buf.length - 1];
+  if (padLen < 1 || padLen > 32) return buf;
+  return buf.slice(0, buf.length - padLen);
+}
+
+function base64Decode(str) {
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 function parseWechatXml(xml) {
