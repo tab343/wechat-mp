@@ -4,30 +4,24 @@ const config = require("../../config");
  * Cloudflare D1 底层客户端
  *
  * 通过 Cloudflare REST API 操作 D1（SQLite 兼容）。
- * 只暴露 query / batch 两个底层方法，不包含业务逻辑。
- *
- * 前置条件：在 Cloudflare 控制台创建 D1 数据库和 API Token。
- *   - Account ID：https://dash.cloudflare.com 总览页右下角
- *   - Database ID：Workers & Pages → D1
- *   - API Token：https://dash.cloudflare.com/profile/api-tokens
- *     权限选 Account → D1 → Edit
+ * 配置优先从 sys-config-cache（DB）读取，回退 process.env。
  */
 
-const { accountId, databaseId, apiToken, apiBase } = config.cloudflare;
+function getCredentials() {
+  return config.cloudflare;
+}
 
+function isConfigured() {
+  const c = getCredentials();
+  return !!(c.accountId && c.databaseId && c.apiToken);
+}
 
-const isConfigured = () => !!(accountId && databaseId && apiToken);
-
-/**
- * 执行一条 SQL（参数化查询，防注入）
- * @param {string} sql    - SQL 语句，使用 ? 占位符
- * @param {Array}  params - 参数数组
- * @returns {Promise<{success: boolean, results: Array, meta: object, error?: string}>}
- */
 async function query(sql, params = []) {
   if (!isConfigured()) {
     return { success: false, results: [], error: "D1 not configured" };
   }
+
+  const { apiBase, apiToken } = getCredentials();
 
   try {
     const res = await fetch(apiBase, {
@@ -63,15 +57,12 @@ async function query(sql, params = []) {
   }
 }
 
-/**
- * 批量执行多条 SQL（同一事务，全部成功或全部回滚）
- * @param {Array<{sql: string, params?: Array}>} statements
- * @returns {Promise<Array>}
- */
 async function batch(statements) {
   if (!isConfigured()) {
     return [];
   }
+
+  const { apiBase, apiToken } = getCredentials();
 
   try {
     const res = await fetch(apiBase, {

@@ -3,6 +3,8 @@ const keywordCache = require("./services/keyword-cache");
 const apiConfigCache = require("./services/api-config-cache");
 const { registerSysActions } = require("./services/actions/sys-actions");
 const { registerBusinessActions } = require("./services/actions");
+const sysConfigCache = require("./services/sys-config-cache");
+const config = require("./config");
 
 let initialized = false;
 let initError = null;
@@ -10,10 +12,13 @@ let initError = null;
 async function ensureInit() {
   if (initialized) return;
   try {
-    console.log("[init] 开始初始化...");
-    console.log("[init] WECHAT_TOKEN:", process.env.WECHAT_TOKEN ? "已设置" : "未设置");
-    console.log("[init] WECHAT_APPID:", process.env.WECHAT_APPID ? "已设置" : "未设置");
-    console.log("[init] CLOUDFLARE_ACCOUNT_ID:", process.env.CLOUDFLARE_ACCOUNT_ID ? "已设置" : "未设置");
+    console.log("[init] 从数据库加载系统配置...");
+    await sysConfigCache.loadFromDatabase();
+
+    const allConfig = sysConfigCache.getAll();
+    console.log("[init] 系统配置: WECHAT_TOKEN=" + (allConfig.WECHAT_TOKEN ? "已设置" : "未设置") + 
+      ", WECHAT_APPID=" + (allConfig.WECHAT_APPID ? "已设置" : "未设置") +
+      ", CLOUDFLARE_ACCOUNT_ID=" + (allConfig.CLOUDFLARE_ACCOUNT_ID ? "已设置" : "未设置"));
 
     await keywordCache.loadFromDatabase();
     console.log("[init] 关键字缓存加载完成");
@@ -53,6 +58,14 @@ export default {
         return handleMessage(request);
       }
 
+      if (request.method === "GET" && path === "/api/config") {
+        return handleConfigList();
+      }
+
+      if (request.method === "POST" && path === "/api/config") {
+        return handleConfigSave(request);
+      }
+
       return new Response("WeChat MP Service", { status: 200 });
     } catch (err) {
       console.error("[worker] 顶层异常:", err.message, err.stack);
@@ -70,7 +83,7 @@ async function handleVerify(request) {
     return new Response(echostr || "", { status: 200 });
   }
 
-  const token = process.env.WECHAT_TOKEN || "";
+  const token = config.token;
   console.log("[verify] TOKEN 长度:", token.length);
 
   const arr = [token, timestamp, nonce].sort();
@@ -164,7 +177,7 @@ async function handleMessage(request) {
 }
 
 async function decryptMsg(rawXml) {
-  const encodingAESKey = process.env.WECHAT_ENCODING_AES_KEY || "";
+  const encodingAESKey = config.encodingAESKey;
   if (!encodingAESKey) {
     throw new Error("未配置 WECHAT_ENCODING_AES_KEY 环境变量");
   }
@@ -220,6 +233,40 @@ function parseWechatXml(xml) {
   }
   console.log("[parse] 解析结果:", JSON.stringify(msg));
   return msg;
+}
+
+async function handleConfigList() {
+  const all = sysConfigCache.getAll();
+  const safeConfig = {};
+  for (const [k, v] of Object.entries(all)) {
+    if (k.includes("TOKEN") || k.includes("SECRET") || k.includes("KEY")) {
+      safeConfig[k] = v ? "***" + v.slice(-4) : "";
+    } else {
+      safeConfig[k] = v;
+    }
+  }
+  return new Response(JSON.stringify(safeConfig), {
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+async function handleConfigSave(request) {
+  try {
+    const body = await request.json();
+    const configDb = require("./services/db/sys_config-db");
+    for (const [key, value] of Object.entries(body)) {
+      await configDb.setValue(key, String(value));
+    }
+    await sysConfigCache.refresh();
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ success: false, error: err.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
 
 function buildReplyXml(msg, reply) {
