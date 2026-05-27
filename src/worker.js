@@ -177,9 +177,17 @@ async function handleMessage(request) {
 }
 
 async function decryptMsg(rawXml) {
-  const encodingAESKey = config.encodingAESKey;
+  let encodingAESKey = config.encodingAESKey;
+
   if (!encodingAESKey) {
-    throw new Error("未配置 WECHAT_ENCODING_AES_KEY 环境变量");
+    console.log("[decrypt] 缓存中无 AESKey，尝试从数据库重新加载...");
+    await sysConfigCache.refresh();
+    encodingAESKey = config.encodingAESKey;
+    console.log("[decrypt] 刷新后 AESKey:", encodingAESKey ? "已获取 (长度=" + encodingAESKey.length + ")" : "仍然为空");
+  }
+
+  if (!encodingAESKey) {
+    throw new Error("未配置 WECHAT_ENCODING_AES_KEY，请通过 POST /api/config 写入");
   }
 
   const xmlObj = parseWechatXml(rawXml);
