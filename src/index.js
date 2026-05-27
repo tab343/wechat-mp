@@ -1,5 +1,6 @@
 const express = require("express");
 const { parseStringPromise } = require("xml2js");
+const os = require("os");
 const config = require("./config");
 const { isConfigured } = require("./services/db/d1-client");
 const { initDatabase } = require("./services/db/init-db");
@@ -16,6 +17,18 @@ const { handleLinkMessage } = require("./services/handlers/link");
 const { handleEventMessage } = require("./services/handlers/event");
 
 const app = express();
+
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 
 app.get(config.path, async (req, res) => {
   const { echostr, signature, timestamp, nonce } = req.query;
@@ -258,20 +271,22 @@ async function bootstrap() {
     registerBusinessActions();
 
     const server = app.listen(config.port, () => {
+      const hostIP = getLocalIP();
       console.log(`
 ╔══════════════════════════════════════════════╗
 ║     微信公众号服务已启动                      ║
 ║     Port: ${String(config.port).padEnd(35)}║
 ║     Path: ${config.path.padEnd(35)}║
 ║     AppID: ${config.appID.padEnd(33)}║
+║     Host: ${hostIP.padEnd(35)}║
 ╚══════════════════════════════════════════════╝
   `);
-      console.log(`✅ 域名验证接口：     GET  http://localhost:${config.port}${config.path}`);
-      console.log(`✅ 消息接收接口：     POST http://localhost:${config.port}${config.path}`);
-      console.log(`✅ 用户列表：         GET  http://localhost:${config.port}/api/users`);
-      console.log(`✅ 关键字缓存：       GET  http://localhost:${config.port}/api/keywords`);
-      console.log(`✅ API 配置列表：     GET  http://localhost:${config.port}/api/api-configs`);
-      console.log(`✅ API 配置更新：     POST http://localhost:${config.port}/api/api-configs/{name}`);
+      console.log(`✅ 域名验证接口：     GET  http://${hostIP}:${config.port}${config.path}`);
+      console.log(`✅ 消息接收接口：     POST http://${hostIP}:${config.port}${config.path}`);
+      console.log(`✅ 用户列表：         GET  http://${hostIP}:${config.port}/api/users`);
+      console.log(`✅ 关键字缓存：       GET  http://${hostIP}:${config.port}/api/keywords`);
+      console.log(`✅ API 配置列表：     GET  http://${hostIP}:${config.port}/api/api-configs`);
+      console.log(`✅ API 配置更新：     POST http://${hostIP}:${config.port}/api/api-configs/{name}`);
 
       if (!isConfigured()) {
         console.warn("⚠️  D1 未配置，请设置环境变量 CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_D1_DATABASE_ID / CLOUDFLARE_API_TOKEN");
