@@ -223,10 +223,11 @@ function base64Decode(str) {
 }
 
 function parseWechatXml(xml) {
+  const inner = xml.replace(/<\?xml[^>]*\?>/i, "").replace(/<\/?xml[^>]*>/gi, "").trim();
   const msg = {};
-  const tagRegex = /<(\w+)>\s*(?:\<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/\1>/gi;
+  const tagRegex = /<(\w+)>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:]]>)?\s*<\/\1>/gi;
   let match;
-  while ((match = tagRegex.exec(xml)) !== null) {
+  while ((match = tagRegex.exec(inner || xml)) !== null) {
     if (!msg[match[1]]) {
       msg[match[1]] = match[2];
     }
