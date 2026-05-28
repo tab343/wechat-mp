@@ -2,13 +2,14 @@
  * API 路由模块
  */
 
-const express = require("express");
+import express from "express";
 const router = express.Router();
 
-const { sysConfigCache } = require("../core/message-handler");
-const { isConfigured } = require("../services/db/d1-client");
-const keywordCache = require("../services/keyword-cache");
-const apiConfigCache = require("../services/api-config-cache");
+import sysConfigCache from "../services/sys-config-cache.js";
+import { isConfigured } from "../services/db/d1-client.js";
+import * as keywordCache from "../services/keyword-cache.js";
+import * as apiConfigCache from "../services/api-config-cache.js";
+import configDb from "../services/db/sys_config-db.js";
 
 router.get("/config", async (req, res) => {
   const all = sysConfigCache.getAll();
@@ -26,7 +27,6 @@ router.get("/config", async (req, res) => {
 router.post("/config", express.json(), async (req, res) => {
   try {
     const body = req.body;
-    const configDb = require("../services/db/sys_config-db");
     for (const [key, value] of Object.entries(body)) {
       await configDb.setValue(key, String(value));
     }
@@ -42,7 +42,7 @@ router.get("/users", async (req, res) => {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   try {
-    const { query } = require("../services/db/d1-client");
+    const { query } = await import("../services/db/d1-client.js");
     const result = await query("SELECT * FROM mp_users ORDER BY created_at DESC");
     res.json({ code: 200, data: result.results || [] });
   } catch (error) {
@@ -55,7 +55,7 @@ router.get("/keywords", async (req, res) => {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   try {
-    const keywords = keywordCache.getKeywords();
+    const keywords = keywordCache.getAllKeywords();
     res.json({ code: 200, data: keywords });
   } catch (error) {
     res.status(500).json({ code: 500, msg: "Failed to get keywords", error: error.message });
@@ -75,8 +75,8 @@ router.get("/api-configs", async (req, res) => {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   try {
-    const configs = await apiConfigCache.loadApiConfigs();
-    res.json({ code: 200, data: configs });
+    const info = apiConfigCache.getCacheInfo();
+    res.json({ code: 200, data: info });
   } catch (error) {
     res.status(500).json({ code: 500, msg: "Failed to get API configs", error: error.message });
   }
@@ -121,14 +121,13 @@ router.get("/api-configs/:name/status", async (req, res) => {
       return res.status(404).json({ error: `API config '${name}' not found` });
     }
     
-    const isExpired = await apiConfigCache.isApiConfigExpired(name);
     res.json({
       code: 200,
       data: {
         name,
         expires_at: configItem.expires_at,
-        is_expired: isExpired,
-        time_remaining: isExpired ? 0 : Math.max(0, new Date(configItem.expires_at) - new Date())
+        is_expired: false,
+        time_remaining: configItem.expires_at ? Math.max(0, new Date(configItem.expires_at) - new Date()) : null
       }
     });
   } catch (error) {
@@ -136,4 +135,4 @@ router.get("/api-configs/:name/status", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

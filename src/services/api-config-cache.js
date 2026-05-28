@@ -1,5 +1,5 @@
-const apiInfoDb = require("./db/sys_api_info-db");
-const { isConfigured } = require("./db/d1-client");
+import apiInfoDb from "./db/sys_api_info-db.js";
+import { isConfigured } from "./db/d1-client.js";
 
 const configCache = {};
 let lastLoadTime = null;
@@ -84,7 +84,7 @@ function getCacheInfo() {
   };
 }
 
-module.exports = {
+export {
   loadApiConfigs,
   getApiConfig,
   refreshApiConfig,

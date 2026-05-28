@@ -34,7 +34,7 @@ async function executeMenu(msg) {
 /**
  * 功能定义
  */
-module.exports = {
+export default {
   actionId: "menu",
   executor: executeMenu,
   description: "查看菜单",

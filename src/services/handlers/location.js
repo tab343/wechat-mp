@@ -2,14 +2,9 @@
  * 位置消息处理器
  * 
  * 处理用户发送的地理位置消息，支持地图服务集成等扩展功能。
- * 
- * 扩展方式：
- * 1. 接入地图服务进行地址解析
- * 2. 周边搜索（如附近的商家）
- * 3. 路线规划
  */
 
-const { textReply } = require("./utils");
+import { textReply } from "./utils.js";
 
 /**
  * 位置消息主处理器
@@ -24,32 +19,10 @@ const { textReply } = require("./utils");
  * @param {string} [msg.Label] - 位置标签（地址描述）
  * @param {number} msg.MsgId - 消息 ID
  * @returns {Object|null} 回复消息对象
- * 
- * @example
- * // 消息示例：
- * {
- *   FromUserName: 'o1234567890abcdef1234567890abcdef',
- *   ToUserName: 'gh_1234567890abcdef',
- *   CreateTime: 1672531200,
- *   MsgType: 'location',
- *   Location_X: '39.9087',
- *   Location_Y: '116.3975',
- *   Scale: 15,
- *   Label: '北京市朝阳区天安门广场',
- *   MsgId: 1234567890123456
- * }
  */
 async function handleLocation(msg) {
   const { Location_X: lat, Location_Y: lng, Label, Scale } = msg;
   console.log(`[消息] 收到位置: ${Label} (${lat}, ${lng})`);
-
-  // 扩展：地址逆解析
-  // const address = await reverseGeocode(lat, lng);
-  // if (address) return textReply(msg, `地址：${address}`);
-
-  // 扩展：周边搜索
-  // const nearby = await searchNearby(lat, lng, "美食");
-  // if (nearby) return textReply(msg, `附近美食：${nearby.join("、")}`);
 
   return textReply(msg, `已收到您的位置：${Label || `${lat}, ${lng}`} 📍`);
 }
@@ -84,7 +57,7 @@ function getScale(msg) {
   return parseInt(msg.Scale) || null;
 }
 
-module.exports = {
+export {
   handleLocation,
   getCoordinates,
   getLabel,

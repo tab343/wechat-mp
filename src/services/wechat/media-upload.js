@@ -1,26 +1,14 @@
 /**
  * 微信临时素材上传服务
- * 
- * 封装微信公众号临时素材上传功能，支持多种媒体类型。
- * 自动从 access-token.js 获取已缓存的 Access Token。
- * 
- * 使用方式：
- * ```javascript
- * const { uploadImage } = require('./media-upload');
- * const mediaId = await uploadImage(imageBuffer);
- * ```
  */
 
-const { getAccessToken } = require('./access-token');
+import { getAccessToken } from './access-token.js';
 
 // 微信 API 基础 URL
 const WECHAT_API_BASE = 'https://api.weixin.qq.com/cgi-bin/media/upload';
 
 /**
  * 构建上传 URL
- * @param {string} type - 媒体类型：image/voice/video/thumb
- * @param {string} accessToken - Access Token
- * @returns {string} 完整的上传 URL
  */
 function buildUploadUrl(type, accessToken) {
   return `${WECHAT_API_BASE}?access_token=${accessToken}&type=${type}`;
@@ -28,14 +16,6 @@ function buildUploadUrl(type, accessToken) {
 
 /**
  * 上传图片到微信临时素材服务器
- * @param {Buffer} imageBuffer - 图片二进制数据
- * @param {Object} options - 可选配置
- * @param {string} options.filename - 文件名（默认：image.png）
- * @returns {Promise<string>} MediaId
- * @example
- * const fs = require('fs');
- * const buffer = fs.readFileSync('barcode.png');
- * const mediaId = await uploadImage(buffer, { filename: 'barcode.png' });
  */
 async function uploadImage(imageBuffer, options = {}) {
   const { filename = 'image.png' } = options;
@@ -59,10 +39,6 @@ async function uploadImage(imageBuffer, options = {}) {
 
 /**
  * 上传语音到微信临时素材服务器
- * @param {Buffer} voiceBuffer - 语音二进制数据
- * @param {Object} options - 可选配置
- * @param {string} options.filename - 文件名（默认：voice.mp3）
- * @returns {Promise<string>} MediaId
  */
 async function uploadVoice(voiceBuffer, options = {}) {
   const { filename = 'voice.mp3' } = options;
@@ -86,10 +62,6 @@ async function uploadVoice(voiceBuffer, options = {}) {
 
 /**
  * 上传视频到微信临时素材服务器
- * @param {Buffer} videoBuffer - 视频二进制数据
- * @param {Object} options - 可选配置
- * @param {string} options.filename - 文件名（默认：video.mp4）
- * @returns {Promise<string>} MediaId
  */
 async function uploadVideo(videoBuffer, options = {}) {
   const { filename = 'video.mp4' } = options;
@@ -113,10 +85,6 @@ async function uploadVideo(videoBuffer, options = {}) {
 
 /**
  * 上传缩略图到微信临时素材服务器
- * @param {Buffer} thumbBuffer - 缩略图二进制数据（JPG 格式，大小不超过 64KB）
- * @param {Object} options - 可选配置
- * @param {string} options.filename - 文件名（默认：thumb.jpg）
- * @returns {Promise<string>} MediaId
  */
 async function uploadThumb(thumbBuffer, options = {}) {
   const { filename = 'thumb.jpg' } = options;
@@ -140,11 +108,6 @@ async function uploadThumb(thumbBuffer, options = {}) {
 
 /**
  * 通用上传方法
- * @param {Buffer} mediaBuffer - 媒体文件二进制数据
- * @param {string} type - 媒体类型：image/voice/video/thumb
- * @param {Object} options - 可选配置
- * @param {string} options.filename - 文件名
- * @returns {Promise<string>} MediaId
  */
 async function upload(mediaBuffer, type, options = {}) {
   const uploaders = {
@@ -162,7 +125,7 @@ async function upload(mediaBuffer, type, options = {}) {
   return uploader(mediaBuffer, options);
 }
 
-module.exports = {
+export {
   uploadImage,
   uploadVoice,
   uploadVideo,

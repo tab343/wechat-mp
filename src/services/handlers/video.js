@@ -9,7 +9,7 @@
  * 3. 视频内容审核
  */
 
-const { textReply } = require("./utils");
+import { textReply } from "./utils.js";
 
 /**
  * 视频消息主处理器
@@ -85,7 +85,7 @@ function getThumbMediaId(msg) {
   return msg.ThumbMediaId || null;
 }
 
-module.exports = {
+export {
   handleVideo,
   getVideoTitle,
   getVideoDescription,

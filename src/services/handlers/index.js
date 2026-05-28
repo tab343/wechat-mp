@@ -2,34 +2,27 @@
  * 消息处理器注册中心
  * 
  * 统一管理所有消息类型的处理器，提供动态注册和扩展能力。
- * 
- * 使用方式：
- * const handlers = require('./handlers');
- * const reply = await handlers.handle(msgType, msg);
- * 
- * 扩展方式：
- * handlers.register('custom', customHandler);
  */
 
 // 导入各类型处理器
-const { handleText } = require("./text");
-const { handleImage } = require("./image");
-const { handleVoice } = require("./voice");
-const { handleVideo } = require("./video");
-const { handleLocation } = require("./location");
-const { handleLink } = require("./link");
-const { handleEvent } = require("./event");
+import * as textHandler from "./text.js";
+import * as imageHandler from "./image.js";
+import * as voiceHandler from "./voice.js";
+import * as videoHandler from "./video.js";
+import * as locationHandler from "./location.js";
+import * as linkHandler from "./link.js";
+import * as eventHandler from "./event.js";
 
 // ── 处理器注册表 ────────────────────────────────────────────
 const handlerRegistry = {
-  text: handleText,
-  image: handleImage,
-  voice: handleVoice,
-  video: handleVideo,
-  shortvideo: handleVideo, // 短视频复用视频处理器
-  location: handleLocation,
-  link: handleLink,
-  event: handleEvent,
+  text: textHandler.handleText,
+  image: imageHandler.handleImage,
+  voice: voiceHandler.handleVoice,
+  video: videoHandler.handleVideo,
+  shortvideo: videoHandler.handleVideo, // 短视频复用视频处理器
+  location: locationHandler.handleLocation,
+  link: linkHandler.handleLink,
+  event: eventHandler.handleEvent,
 };
 
 /**
@@ -104,7 +97,7 @@ async function handle(msgType, msg) {
 
 // ── 导出扩展接口 ────────────────────────────────────────────
 
-module.exports = {
+export {
   // 主入口
   handle,
   
@@ -113,16 +106,17 @@ module.exports = {
   unregister,
   getHandler,
   getRegisteredTypes,
-  
-  // 各类型处理器（便于单独使用或扩展）
-  text: require("./text"),
-  image: require("./image"),
-  voice: require("./voice"),
-  video: require("./video"),
-  location: require("./location"),
-  link: require("./link"),
-  event: require("./event"),
-  
-  // 工具函数
-  utils: require("./utils"),
 };
+
+// 各类型处理器（便于单独使用或扩展）
+export { textHandler as text };
+export { imageHandler as image };
+export { voiceHandler as voice };
+export { videoHandler as video };
+export { locationHandler as location };
+export { linkHandler as link };
+export { eventHandler as event };
+
+// 工具函数
+import * as utils from "./utils.js";
+export { utils };

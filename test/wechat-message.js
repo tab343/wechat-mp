@@ -12,7 +12,7 @@
  *   node test/wechat-message.js 菜单
  */
 
-const axios = require('axios');
+import axios from 'axios';
 
 const BASE_URL = 'http://localhost:3000';
 const WECHAT_PATH = '/wechat';

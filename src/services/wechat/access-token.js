@@ -1,4 +1,4 @@
-const config = require('../../config');
+import config from '../../config/index.js';
 
 let accessToken = null;
 let expiresAt = 0;
@@ -67,7 +67,7 @@ async function refreshAccessToken() {
   return getAccessToken();
 }
 
-module.exports = {
+export {
   getAccessToken,
   refreshAccessToken
 };

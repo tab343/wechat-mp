@@ -1,4 +1,4 @@
-const { query } = require("./d1-client");
+import { query } from "./d1-client.js";
 
 async function getApiConfig(name) {
   const result = await query(
@@ -63,7 +63,7 @@ async function isApiConfigExpired(name) {
   return new Date(config.expires_at) < new Date();
 }
 
-module.exports = {
+export {
   getApiConfig,
   upsertApiConfig,
   listApiConfigs,

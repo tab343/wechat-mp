@@ -3,8 +3,8 @@
  * 测试条形码生成和缓存机制
  */
 
-const axios = require('axios');
-const bwipjs = require('bwip-js');
+import axios from 'axios';
+import bwipjs from 'bwip-js';
 
 // 测试条形码生成
 async function testBarcodeGeneration() {

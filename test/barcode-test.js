@@ -1,9 +1,9 @@
 /**
  * 条形码生成测试脚本
  */
-const bwipjs = require("bwip-js");
-const fs = require("fs");
-const path = require("path");
+import bwipjs from "bwip-js";
+import fs from "fs";
+import path from "path";
 
 async function testBarcode() {
   const memberCode = "5101237031828111";
@@ -23,7 +23,7 @@ async function testBarcode() {
     });
     
     // 保存到临时文件
-    const outputPath = path.join(__dirname, '../public/temp/test_barcode.png');
+    const outputPath = path.join(path.dirname(import.meta.url).replace('file:///', ''), '../public/temp/test_barcode.png');
     fs.writeFileSync(outputPath, pngBuffer);
     
     console.log(`✅ 条形码生成成功！`);

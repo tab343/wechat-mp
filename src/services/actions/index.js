@@ -2,21 +2,21 @@
  * 业务功能注册中心
  * 
  * 自动加载所有业务功能模块并注册到关键字缓存
- * 
- * 新增业务功能步骤：
- * 1. 在本目录创建新的功能文件（如 xxx.js）
- * 2. 导出格式：{ actionId, executor, description, defaultKeywords }
- * 3. 在数据库 sys_keywords 表中添加关键字映射
  */
 
-const keywordCache = require("../keyword-cache");
+import keywordCache from "../keyword-cache.js";
 
 // 业务功能列表
+import helpAction from "./help.js";
+import greetingAction from "./greeting.js";
+import menuAction from "./menu.js";
+import ludaoAction from "./ludao.js";
+
 const businessActions = [
-  require("./help"),
-  require("./greeting"),
-  require("./menu"),
-  require("./ludao"),
+  helpAction,
+  greetingAction,
+  menuAction,
+  ludaoAction,
 ];
 
 /**
@@ -71,7 +71,7 @@ function addBusinessAction(action) {
   return keywordCache.registerActionExecutor(action.actionId, action.executor);
 }
 
-module.exports = {
+export {
   businessActions,
   registerBusinessActions,
   getBusinessActions,

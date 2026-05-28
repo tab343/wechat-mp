@@ -27,7 +27,7 @@ async function executeGreeting(msg) {
 /**
  * 功能定义
  */
-module.exports = {
+export default {
   actionId: "greeting",
   executor: executeGreeting,
   description: "打招呼",

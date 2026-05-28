@@ -4,7 +4,7 @@
  * 显示所有可用的命令和功能说明
  */
 
-const keywordCache = require("../keyword-cache");
+import keywordCache from "../keyword-cache.js";
 
 /**
  * 生成帮助信息
@@ -47,7 +47,7 @@ async function executeHelp(msg) {
 /**
  * 功能定义
  */
-module.exports = {
+export default {
   actionId: "help",
   executor: executeHelp,
   description: "查看帮助信息",

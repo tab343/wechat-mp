@@ -1,4 +1,4 @@
-const { query } = require("./d1-client");
+import { query } from "./d1-client.js";
 
 /**
  * Keywords database operations (sys_keywords table)
@@ -66,11 +66,10 @@ async function enable(keyword) {
     [keyword]
   );
 }
-
-module.exports = {
+export const keywordDb = {
   findByKeyword,
-  findByAction,
   findAllEnabled,
+  findByAction,
   findAllSystemKeywords,
   upsert,
   remove,

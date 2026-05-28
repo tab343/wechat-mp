@@ -2,14 +2,9 @@
  * 链接消息处理器
  * 
  * 处理用户发送的链接消息，支持链接预览、内容提取等扩展功能。
- * 
- * 扩展方式：
- * 1. 链接内容抓取和解析
- * 2. 链接安全性检测
- * 3. 链接预览生成
  */
 
-const { textReply } = require("./utils");
+import { textReply } from "./utils.js";
 
 /**
  * 链接消息主处理器
@@ -23,31 +18,10 @@ const { textReply } = require("./utils");
  * @param {string} msg.Url - 链接 URL
  * @param {number} msg.MsgId - 消息 ID
  * @returns {Object|null} 回复消息对象
- * 
- * @example
- * // 消息示例：
- * {
- *   FromUserName: 'o1234567890abcdef1234567890abcdef',
- *   ToUserName: 'gh_1234567890abcdef',
- *   CreateTime: 1672531200,
- *   MsgType: 'link',
- *   Title: '微信公众平台',
- *   Description: '微信公众平台官方网站',
- *   Url: 'https://mp.weixin.qq.com',
- *   MsgId: 1234567890123456
- * }
  */
 async function handleLink(msg) {
   const { Title, Description, Url } = msg;
   console.log(`[消息] 收到链接: ${Title} → ${Url}`);
-
-  // 扩展：链接内容抓取
-  // const content = await fetchLinkContent(Url);
-  // if (content) return textReply(msg, `链接内容摘要：${content}`);
-
-  // 扩展：链接安全检测
-  // const isSafe = await checkLinkSafety(Url);
-  // if (!isSafe) return textReply(msg, `⚠️ 该链接可能存在安全风险`);
 
   let reply = `已收到您分享的链接：`;
   if (Title) {
@@ -88,7 +62,7 @@ function getLinkUrl(msg) {
   return msg.Url || null;
 }
 
-module.exports = {
+export {
   handleLink,
   getLinkTitle,
   getLinkDescription,

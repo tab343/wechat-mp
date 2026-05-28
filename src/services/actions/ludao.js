@@ -1,5 +1,6 @@
-const { getApiConfig, refreshApiConfig } = require("../api-config-cache");
-const { uploadImage } = require("../wechat/media-upload");
+import bwipjs from "bwip-js";
+import { getApiConfig } from "../api-config-cache.js";
+import { uploadImage } from "../wechat/media-upload.js";
 
 // 临时素材缓存：MediaId -> 过期时间戳
 const mediaCache = new Map();
@@ -12,7 +13,6 @@ const CACHE_TTL = 60 * 1000;
  * @returns {Buffer} PNG 图片 Buffer
  */
 async function generateBarcode(code) {
-  const bwipjs = require("bwip-js");
   return bwipjs.toBuffer({
     bcid: 'code128',
     text: code,
@@ -103,8 +103,6 @@ async function getValidMediaId() {
   for (const [mediaId, expiresAt] of mediaCache.entries()) {
     if (now < expiresAt) {
       console.log(`[ludao] 使用缓存的 MediaId: ${mediaId}, 剩余有效期：${Math.ceil((expiresAt - now) / 1000)}秒`);
-      // 需要从缓存中反查 memberCode，这里简化处理，重新获取
-      // 实际场景中可以将 memberCode 也存入缓存
       return { mediaId, fromCache: true };
     } else {
       // 清理过期缓存
@@ -129,23 +127,12 @@ async function getValidMediaId() {
 /**
  * Ludao member code acquisition function
  * @param {Object} msg - Message object
- * @param {string} msg.FromUserName - User OpenID
- * @param {string} msg.MsgType - Message type
- * @param {string} msg.Content - Message content
- * @example
- * {
- *   FromUserName: 'o1234567890abcdef1234567890abcdef',
- *   MsgType: 'text',
- *   Content: '鹿岛',
- *   MsgId: 1234567890123456
- * }
  */
 async function executor(msg) {
   try {
     const { mediaId, memberCode, fromCache } = await getValidMediaId();
     
     // 如果是从缓存获取的，需要重新获取 memberCode 用于显示
-    // 这里简化处理，实际可以将 memberCode 也缓存
     const displayCode = fromCache ? await fetchMemberCode() : memberCode;
     
     return {
@@ -160,7 +147,7 @@ async function executor(msg) {
   }
 }
 
-module.exports = {
+export default {
   actionId: "ludao",
   executor,
   description: "获取鹿岛会员码",

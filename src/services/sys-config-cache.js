@@ -48,8 +48,17 @@ function getAll() {
   return { ...configCache };
 }
 
+/**
+ * 刷新缓存（重新从数据库加载）
+ */
+async function refresh() {
+  console.log("[sys-config-cache] 刷新配置缓存...");
+  return loadOnStartup();
+}
+
 export default {
   loadOnStartup,
   get,
   getAll,
+  refresh,
 };

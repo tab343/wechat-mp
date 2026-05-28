@@ -2,22 +2,13 @@
  * 关键字缓存模块
  * 
  * 职责：从数据库加载关键字到内存，提供关键字查询和缓存管理功能。
- * 
- * 关键字与功能的映射关系：
- * - keyword -> action（关键字映射到功能标识）
- * - action -> executor（功能标识映射到执行函数）
- * 
- * 扩展方式：
- * 1. 在数据库中添加关键字记录（sys_keywords 表）
- * 2. 在 actions 目录中创建功能模块
- * 3. 使用 registerActionExecutor 注册执行器
  */
 
-const keywordDb = require("./db/sys_keywords-db");
-const { isConfigured } = require("./db/d1-client");
+import { keywordDb } from "./db/sys_keywords-db.js";
+import { isConfigured } from "./db/d1-client.js";
 
 // 关键字缓存: keyword -> { action, description, isSystem }
-let keywordCache = new Map();
+let keywordsCache = new Map();
 
 // 功能缓存: action -> [keywords]
 let actionCache = new Map();
@@ -40,11 +31,11 @@ async function loadFromDatabase() {
   try {
     const keywords = await keywordDb.findAllEnabled();
     
-    keywordCache.clear();
+    keywordsCache.clear();
     actionCache.clear();
 
     for (const item of keywords) {
-      keywordCache.set(item.keyword.toLowerCase(), {
+      keywordsCache.set(item.keyword.toLowerCase(), {
         action: item.action,
         description: item.description,
         isSystem: !!item.is_system,
@@ -76,7 +67,7 @@ async function refresh() {
 /**
  * 根据关键字查找功能
  * @param {string} keyword - 关键字
- * @returns {Object|null} 关键字配置对象 { action, description, isSystem }
+ * @returns {Object|null} 关键字配置对象
  */
 function getAction(keyword) {
   if (!keyword) return null;
@@ -115,7 +106,7 @@ function hasAction(action) {
  * @returns {Object[]} 关键字列表
  */
 function getAllKeywords() {
-  return Array.from(keywordCache.entries()).map(([keyword, config]) => ({
+  return Array.from(keywordsCache.entries()).map(([keyword, config]) => ({
     keyword,
     ...config,
   }));
@@ -145,7 +136,7 @@ function isReady() {
 /**
  * 注册功能执行器
  * @param {string} action - 功能标识
- * @param {Function} executor - 执行函数，接收 msg 参数
+ * @param {Function} executor - 执行函数
  * @returns {boolean} 是否成功
  */
 function registerActionExecutor(action, executor) {
@@ -202,10 +193,10 @@ function hasExecutor(action) {
   return actionExecutors.has(action);
 }
 
-module.exports = {
+export const keywordCache = {
   // 缓存管理
   loadFromDatabase,
-  refresh,
+  refresh,  
   isReady,
   
   // 关键字查询

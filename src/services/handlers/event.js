@@ -9,8 +9,8 @@
  * 3. 添加自定义菜单事件处理
  */
 
-const { textReply } = require("./utils");
-const userDb = require("../db/mp_users-db");
+import { textReply } from "./utils.js";
+import { userDb } from "../db/mp_users-db.js";
 
 // ── 事件类型处理器映射 ──────────────────────────────────────
 const eventHandlers = {
@@ -214,10 +214,9 @@ function getRegisteredEvents() {
   return Object.keys(eventHandlers);
 }
 
-module.exports = {
+export {
   handleEvent,
   registerEventHandler,
   getRegisteredEvents,
-  // 暴露事件处理器映射便于扩展
   eventHandlers,
 };

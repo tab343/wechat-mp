@@ -1,13 +1,10 @@
 /**
  * 系统功能模块
  * 
- * 提供关键字缓存的核心操作功能，包括：
- * - 加载关键字
- * - 刷新缓存
- * - 系统级别的关键字处理
+ * 提供关键字缓存的核心操作功能
  */
 
-const keywordCache = require("../keyword-cache");
+import { keywordCache } from "../keyword-cache.js";
 
 /**
  * 刷新关键字缓存功能
@@ -44,7 +41,6 @@ async function getCacheStatus(msg) {
 
 /**
  * 系统功能注册表
- * 格式: actionId -> 执行函数
  */
 const sysActions = {
   "sys:refresh": refreshKeywords,
@@ -61,7 +57,7 @@ function registerSysActions() {
   console.log(`[sys-actions] 已注册 ${Object.keys(sysActions).length} 个系统功能`);
 }
 
-module.exports = {
+export {
   sysActions,
   registerSysActions,
   refreshKeywords,

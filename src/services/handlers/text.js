@@ -9,8 +9,8 @@
  * 3. 多个关键字可以映射到同一个功能
  */
 
-const { textReply, newsReply } = require("./utils");
-const keywordCache = require("../keyword-cache");
+import { textReply, newsReply } from "./utils.js";
+import { keywordCache } from "../keyword-cache.js";
 
 /**
  * 文本消息主处理器
@@ -103,7 +103,7 @@ function addKeywords(newKeywords) {
   }
 }
 
-module.exports = {
+export {
   handleText,
   addKeyword,
   addKeywords,

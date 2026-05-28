@@ -9,7 +9,7 @@
  * 3. 语音合成回复
  */
 
-const { textReply } = require("./utils");
+import { textReply } from "./utils.js";
 
 /**
  * 语音消息主处理器
@@ -72,7 +72,7 @@ function getRecognition(msg) {
   return msg.Recognition || null;
 }
 
-module.exports = {
+export {
   handleVoice,
   getVoiceFormat,
   getRecognition,

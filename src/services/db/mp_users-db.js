@@ -1,4 +1,4 @@
-const { query } = require("./d1-client");
+import { query } from "./d1-client.js";
 
 /**
  * 用户数据库操作（mp_users 表）
@@ -78,7 +78,7 @@ async function countActive() {
   return result.results?.[0]?.total || 0;
 }
 
-module.exports = {
+export const userDb = {
   upsertBySubscribe,
   markUnsubscribed,
   findByOpenid,

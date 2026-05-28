@@ -98,7 +98,7 @@ function videoReply(msg, mediaId, title, description) {
   };
 }
 
-module.exports = {
+export {
   textReply,
   imageReply,
   newsReply,

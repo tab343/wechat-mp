@@ -9,7 +9,7 @@
  * 3. 对图片进行处理（压缩、加水印等）
  */
 
-const { textReply } = require("./utils");
+import { textReply } from "./utils.js";
 
 /**
  * 图片消息主处理器
@@ -65,7 +65,7 @@ function getMediaId(msg) {
   return msg.MediaId || null;
 }
 
-module.exports = {
+export {
   handleImage,
   getImageUrl,
   getMediaId,

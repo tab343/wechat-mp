@@ -30,8 +30,6 @@ export default {
     return getConfig("WECHAT_ENCODING_AES_KEY", "WECHAT_ENCODING_AES_KEY");
   },
 
-  port: process.env.PORT || 3000,
-
   path: "/",
 
   get cloudflare() {
