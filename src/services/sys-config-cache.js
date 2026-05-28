@@ -23,14 +23,11 @@ async function loadOnStartup() {
       configCache[item.config_key] = item.config_value;
     }
 
-    // 【唯一一次打印】
-    console.log("\n==================================");
-    console.log("  系统配置加载完成（仅启动时打印）");
-    console.log("==================================");
+    console.log("=========系统配置加载完成开始===============");
     for (const key in configCache) {
       console.log(`✅ ${key} = ${configCache[key]}`);
     }
-    console.log("==================================\n");
+    console.log("=========系统配置加载完成结束===============");
 
     return true;
   } catch (err) {

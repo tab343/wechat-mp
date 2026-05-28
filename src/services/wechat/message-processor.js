@@ -153,8 +153,10 @@ ${reply.content}
  * @returns {string|boolean} echostr 或 false
  */
 async function handleGetRequest(query) {
+   console.log(`[message-processor] 收到 GET 请求，参数: ${JSON.stringify(query)}`);
   const { echostr, signature, timestamp, nonce } = query;
   const token = sysConfigCache.get("WECHAT_TOKEN") || config.token;
+  console.log(`[message-processor] 微信Token: ${token}`);
   
   if (!signature || !timestamp || !nonce) {
     console.warn("[message-processor] GET 请求参数不完整");
