@@ -5,7 +5,6 @@
  */
 
 import { keywordDb } from "./db/sys_keywords-db.js";
-import { isConfigured } from "./db/d1-client.js";
 
 // 关键字缓存: keyword -> { action, description, isSystem }
 let keywordsCache = new Map();
@@ -23,10 +22,6 @@ let isInitialized = false;
  * 从数据库加载所有启用的关键字到缓存
  */
 async function loadFromDatabase() {
-  if (!isConfigured()) {
-    console.warn("[keyword-cache] D1 未配置，跳过关键字加载");
-    return false;
-  }
 
   try {
     const keywords = await keywordDb.findAllEnabled();
@@ -57,6 +52,32 @@ async function loadFromDatabase() {
 }
 
 /**
+ * 初始化关键字缓存（完整流程）
+ * 包含：加载关键字 + 注册业务功能执行器
+ * @param {Function} [registerActionsCallback] - 注册业务功能的回调函数
+ * @returns {boolean} 是否成功
+ */
+async function init(registerActionsCallback) {
+  console.log("[keyword-cache] 开始初始化...");
+  
+  // 1. 从数据库加载关键字
+  const loadSuccess = await loadFromDatabase();
+  
+  // 2. 注册业务功能执行器（如果提供了回调）
+  if (registerActionsCallback && typeof registerActionsCallback === 'function') {
+    try {
+      registerActionsCallback();
+      console.log("[keyword-cache] 业务功能执行器注册完成");
+    } catch (err) {
+      console.error("[keyword-cache] 注册业务功能执行器失败:", err.message);
+    }
+  }
+  
+  console.log("[keyword-cache] 初始化完成");
+  return loadSuccess;
+}
+
+/**
  * 刷新缓存（从数据库重新加载）
  */
 async function refresh() {
@@ -71,7 +92,7 @@ async function refresh() {
  */
 function getAction(keyword) {
   if (!keyword) return null;
-  return keywordCache.get(keyword.toLowerCase()) || null;
+  return keywordsCache.get(keyword.toLowerCase()) || null;
 }
 
 /**
@@ -173,6 +194,8 @@ function getRegisteredActions() {
  */
 async function executeAction(action, msg) {
   const executor = actionExecutors.get(action);
+  console.log(`[keyword-cache] 执行功能: %o`, action);
+
   if (executor) {
     try {
       return await executor(msg);
@@ -195,6 +218,7 @@ function hasExecutor(action) {
 
 export const keywordCache = {
   // 缓存管理
+  init,
   loadFromDatabase,
   refresh,  
   isReady,

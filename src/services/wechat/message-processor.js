@@ -97,7 +97,8 @@ async function processMessage(xml, isEncrypted = false) {
     
     // 2. 路由处理
     const replyContent = await routeMessage(msg);
-    console.log(`[message-processor] 路由处理结果: ${replyContent}`);
+    const logContent = typeof replyContent === 'object' ? JSON.stringify(replyContent) : replyContent;
+    console.log(`[message-processor] 路由处理结果: ${logContent}`);
     
     // 3. 构建回复 XML
     return buildReplyXml(msg, replyContent);

@@ -8,8 +8,9 @@
 // 导入微信消息处理器（ES 模块语法，Cloudflare 专用）
 import { handleGetRequest, handlePostRequest } from "./services/wechat/message-processor.js";
 import sysConfigCache from "./services/sys-config-cache.js";
-import {  threadId } from 'worker_threads';    
-
+import { keywordCache } from "./services/keyword-cache.js";
+import { registerBusinessActions } from "./services/actions/index.js";
+import { threadId } from 'worker_threads';
 
 // 全局变量，整个 Worker 共享
 // 全局异步锁（解决竞态问题） 
@@ -32,10 +33,10 @@ export default {
     // ✅ 这里判断：如果已经加载过，就永远不再执行！
     if (!initialized && !initializing) {
       initializing = true;
-      console.log("5555[worker] 进行初始化操作...");
-      
+      console.log("[worker] 进行初始化操作...");
       globalThis.env = env;
       await sysConfigCache.loadOnStartup();
+      await keywordCache.init(registerBusinessActions); // 初始化关键字缓存（包含加载关键字和注册执行器）
       initialized = true;
       initializing = false;
     }

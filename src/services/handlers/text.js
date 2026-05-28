@@ -43,10 +43,9 @@ async function handleText(msg) {
 
   // 1. 从缓存中查找关键字
   const keywordInfo = keywordCache.getAction(lowerContent);
-  
   if (keywordInfo) {
     const { action } = keywordInfo;
-    console.log(`[消息] 匹配关键字: ${lowerContent} -> action: ${action}`);
+    console.log("[消息] 匹配关键字:", lowerContent, "-> action:", action);
 
     // 2. 执行对应的功能
     const reply = await keywordCache.executeAction(action, msg);

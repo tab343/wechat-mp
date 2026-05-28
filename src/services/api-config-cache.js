@@ -1,4 +1,4 @@
-import apiInfoDb from "./db/sys_api_info-db.js";
+import * as apiInfoDb from "./db/sys_api_info-db.js";
 import { isConfigured } from "./db/d1-client.js";
 
 const configCache = {};
