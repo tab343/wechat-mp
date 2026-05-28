@@ -2,6 +2,7 @@
   "name": "wechat-mp",
   "version": "1.0.0",
   "description": "微信公众号服务端 - 域名验证 & 消息回复",
+  "type": "module",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

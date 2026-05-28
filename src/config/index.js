@@ -5,21 +5,15 @@
  * 未加载时回退到 process.env 环境变量。
  */
 
-let _sysConfigCache = null;
-function getCache() {
-  if (!_sysConfigCache) {
-    _sysConfigCache = require("../services/sys-config-cache");
-  }
-  return _sysConfigCache;
-}
+import sysConfigCache from "../services/sys-config-cache.js";
 
 function getConfig(key, envKey) {
-  const dbVal = getCache().get(key);
+  const dbVal = sysConfigCache.get(key);
   if (dbVal) return dbVal;
   return process.env[envKey] || "";
 }
 
-module.exports = {
+export default {
   get token() {
     return getConfig("WECHAT_TOKEN", "WECHAT_TOKEN");
   },
@@ -38,7 +32,7 @@ module.exports = {
 
   port: process.env.PORT || 3000,
 
-  path: "/wechat",
+  path: "/",
 
   get cloudflare() {
     const accountId = getConfig("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ACCOUNT_ID");

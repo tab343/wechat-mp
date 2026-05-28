@@ -3,7 +3,7 @@
  * 同时支持本地和 Cloudflare Worker 环境
  */
 
-const sysConfigCache = require("../services/sys-config-cache");
+import sysConfigCache from "../services/sys-config-cache.js";
 
 function parseWechatXml(xml) {
   const inner = xml.replace(/<\?xml[^>]*\?>/i, "").replace(/<\/?xml[^>]*>/gi, "").trim();
@@ -74,7 +74,4 @@ async function decryptMsg(rawXml) {
   return parseWechatXml(msgStr);
 }
 
-module.exports = {
-  parseWechatXml,
-  decryptMsg,
-};
+export { parseWechatXml, decryptMsg };

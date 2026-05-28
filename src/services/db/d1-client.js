@@ -1,15 +1,18 @@
-const config = require("../../config");
+import config from "../../config/index.js";
 
 /**
  * Cloudflare D1 底层客户端
  */
 
 function getCredentials() {
-  const cf = config.cloudflare;
+  // 从全局获取 Cloudflare 环境变量（Worker 环境唯一正确方式）
+  const env = globalThis.env || {};
+
   return {
-    accountId: cf.accountId || process.env.CLOUDFLARE_ACCOUNT_ID || "",
-    databaseId: cf.databaseId || process.env.CLOUDFLARE_D1_DATABASE_ID || "",
-    apiToken: cf.apiToken || process.env.CLOUDFLARE_API_TOKEN || "",
+    accountId: env.CLOUDFLARE_ACCOUNT_ID || "",
+    databaseId: env.CLOUDFLARE_D1_DATABASE_ID || "",
+    apiToken: env.CLOUDFLARE_API_TOKEN || "",
+    
     get apiBase() {
       return `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/d1/database/${this.databaseId}/query`;
     },
@@ -103,4 +106,4 @@ async function batch(statements) {
   }
 }
 
-module.exports = { isConfigured, query, batch };
+export { isConfigured, query, batch };

@@ -1,49 +1,55 @@
-const configDb = require("./db/sys_config-db");
+import configDb from "./db/sys_config-db.js";
 
-let cache = {};
-let loaded = false;
+/**
+ * 系统配置缓存
+ * 仅在应用启动时加载一次，全局只读
+ */
+let configCache = {};
 
-async function loadFromDatabase() {
+/**
+ * 启动时加载配置（本地 + Cloudflare 通用）
+ * 只执行一次！
+ */
+async function loadOnStartup() {
   try {
-    const rows = await configDb.findAll();
-    console.log("[sys-config] findAll 返回:", JSON.stringify(rows));
-    if (!rows || rows.length === 0) {
-      console.warn("[sys-config] 数据库中无配置数据");
-      return false;
+    let rows = [];
+
+    // 统一从 sys_config-db 模块获取配置（内部已兼容 D1/本地环境）
+    rows = await configDb.findAll();
+
+    // 加载到内存
+    configCache = {};
+    for (const item of rows) {
+      configCache[item.config_key] = item.config_value;
     }
-    cache = {};
-    for (const row of rows) {
-      cache[row.config_key] = row.config_value;
+
+    // 【唯一一次打印】
+    console.log("\n==================================");
+    console.log("  系统配置加载完成（仅启动时打印）");
+    console.log("==================================");
+    for (const key in configCache) {
+      console.log(`✅ ${key} = ${configCache[key]}`);
     }
-    loaded = true;
-    console.log(`[sys-config] 已加载 ${rows.length} 项配置, 缓存 keys:`, Object.keys(cache));
+    console.log("==================================\n");
+
     return true;
   } catch (err) {
-    console.error("[sys-config] 加载失败:", err.message);
+    console.error("❌ 启动加载配置失败:", err.message);
     return false;
   }
 }
 
+// 全局只读获取
 function get(key) {
-  return cache[key] || null;
+  return configCache[key] ?? "";
 }
 
 function getAll() {
-  return { ...cache };
+  return { ...configCache };
 }
 
-function isLoaded() {
-  return loaded;
-}
-
-async function refresh() {
-  return loadFromDatabase();
-}
-
-module.exports = {
-  loadFromDatabase,
+export default {
+  loadOnStartup,
   get,
   getAll,
-  isLoaded,
-  refresh,
 };

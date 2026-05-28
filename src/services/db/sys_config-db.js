@@ -1,4 +1,4 @@
-const { query } = require("./d1-client");
+import { query } from "./d1-client.js";
 
 async function findAll() {
   const result = await query("SELECT config_key, config_value FROM sys_config ORDER BY config_key");
@@ -28,7 +28,7 @@ async function deleteKey(key) {
   return query("DELETE FROM sys_config WHERE config_key = ?", [key]);
 }
 
-module.exports = {
+export default {
   findAll,
   getValue,
   setValue,
