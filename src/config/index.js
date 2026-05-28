@@ -35,7 +35,7 @@ export default {
   get cloudflare() {
     const accountId = getConfig("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ACCOUNT_ID");
     const databaseId = getConfig("CLOUDFLARE_D1_DATABASE_ID", "CLOUDFLARE_D1_DATABASE_ID");
-    const apiToken = getConfig("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_TOKEN");
+    const apiToken = getConfig("CLOUDFLARE_ACCOUNT_API_TOKEN", "CLOUDFLARE_ACCOUNT_API_TOKEN");
 
     return {
       accountId,

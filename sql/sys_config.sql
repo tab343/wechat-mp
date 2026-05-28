@@ -23,4 +23,4 @@ INSERT OR IGNORE INTO sys_config (config_key, config_value, description) VALUES
   ('WECHAT_ENCODING_AES_KEY', '请替换为你的AESKey', '消息加解密密钥'),
   ('CLOUDFLARE_ACCOUNT_ID',    '请替换为你的AccountId', 'Cloudflare Account ID'),
   ('CLOUDFLARE_D1_DATABASE_ID', '请替换为你的DatabaseId', 'D1 Database ID'),
-  ('CLOUDFLARE_API_TOKEN',     '请替换为你的ApiToken', 'Cloudflare API Token');
+  ('CLOUDFLARE_ACCOUNT_API_TOKEN',     '请替换为你的ApiToken', 'Cloudflare API Token');
