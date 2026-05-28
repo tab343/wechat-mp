@@ -3,10 +3,6 @@ main = "src/worker.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-[vars]
-CLOUDFLARE_ACCOUNT_ID = "e4481bfaccf0c2174e452038311d894f"
-CLOUDFLARE_D1_DATABASE_ID = "b3063753-bfa4-4172-9692-3f7a4459d621"
-
 [observability]
 enabled = false
 head_sampling_rate = 1
