@@ -17,3 +17,7 @@ invocation_logs = true
 enabled = true
 persist = true
 head_sampling_rate = 1
+
+[vars]
+CLOUDFLARE_ACCOUNT_ID = "e4481bfaccf0c2174e452038311d894f"
+CLOUDFLARE_D1_DATABASE_ID = "b3063753-bfa4-4172-9692-3f7a4459d621"
