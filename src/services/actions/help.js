@@ -4,7 +4,7 @@
  * 显示所有可用的命令和功能说明
  */
 
-import keywordCache from "../keyword-cache.js";
+import { keywordCache } from "../keyword-cache.js";
 
 /**
  * 生成帮助信息

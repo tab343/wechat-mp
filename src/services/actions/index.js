@@ -4,7 +4,7 @@
  * 自动加载所有业务功能模块并注册到关键字缓存
  */
 
-import keywordCache from "../keyword-cache.js";
+import { keywordCache } from "../keyword-cache.js";
 
 // 业务功能列表
 import helpAction from "./help.js";

@@ -117,6 +117,15 @@ export { locationHandler as location };
 export { linkHandler as link };
 export { eventHandler as event };
 
+// 直接导出处理函数（兼容原有调用方式）
+export const handleText = textHandler.handleText;
+export const handleImage = imageHandler.handleImage;
+export const handleVoice = voiceHandler.handleVoice;
+export const handleVideo = videoHandler.handleVideo;
+export const handleLocation = locationHandler.handleLocation;
+export const handleLink = linkHandler.handleLink;
+export const handleEvent = eventHandler.handleEvent;
+
 // 工具函数
 import * as utils from "./utils.js";
 export { utils };

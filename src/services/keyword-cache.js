@@ -47,7 +47,7 @@ async function loadFromDatabase() {
       actionCache.get(item.action).push(item.keyword);
     }
 
-    console.log(`[keyword-cache] 已加载 ${keywordCache.size} 个关键字，${actionCache.size} 个功能`);
+    console.log(`[keyword-cache] 已加载 ${keywordsCache.size} 个关键字，${actionCache.size} 个功能`);
     isInitialized = true;
     return true;
   } catch (err) {
