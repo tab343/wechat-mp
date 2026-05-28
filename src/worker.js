@@ -27,8 +27,8 @@ export default {
   async fetch(request, env, ctx) {
 
     const url = new URL(request.url);
-    console.log('ctx:', JSON.stringify(ctx));
-    console.log('env:', JSON.stringify(env));
+    console.log('1111ctx:', JSON.stringify(ctx));
+    console.log('1111env:', JSON.stringify(env));
 
     // ✅ 这里判断：如果已经加载过，就永远不再执行！
     if (!initialized && !initializing) {
