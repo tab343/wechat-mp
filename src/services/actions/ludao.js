@@ -1,4 +1,4 @@
-import bwipjs from "bwip-js";
+import * as bwipjs from "bwip-js";
 import { getApiConfig } from "../api-config-cache.js";
 import { uploadImage } from "../wechat/media-upload.js";
 
