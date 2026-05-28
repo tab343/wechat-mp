@@ -8,11 +8,108 @@ const mediaCache = new Map();
 const CACHE_TTL = 60 * 1000;
 
 /**
- * 生成条形码图片
+ * 检测是否为 Cloudflare Worker 环境
+ */
+function isCloudflareEnvironment() {
+  return process.env.CF_PAGES || process.env.CF_WORKER || 
+         (typeof caches !== 'undefined' && typeof fetch !== 'undefined' && typeof Request !== 'undefined');
+}
+
+/**
+ * Code128 条形码生成器（纯 JavaScript 实现，兼容 Cloudflare Worker）
+ * @param {string} text - 要编码的文本
+ * @param {number} [scale=2] - 缩放比例
+ * @param {number} [height=30] - 高度（像素）
+ * @returns {Uint8Array} PNG 图片数据
+ */
+async function generateBarcodeCanvas(text, scale = 2, height = 30) {
+  const code128A = {
+    '0': 16, '1': 17, '2': 18, '3': 19, '4': 20, '5': 21, '6': 22, '7': 23, '8': 24, '9': 25,
+    'A': 36, 'B': 37, 'C': 38, 'D': 39, 'E': 40, 'F': 41, 'G': 42, 'H': 43, 'I': 44, 'J': 45,
+    'K': 46, 'L': 47, 'M': 48, 'N': 49, 'O': 50, 'P': 51, 'Q': 52, 'R': 53, 'S': 54, 'T': 55,
+    'U': 56, 'V': 57, 'W': 58, 'X': 59, 'Y': 60, 'Z': 61,
+    ' ': 32, '!': 1, '"': 2, '#': 3, '$': 4, '%': 5, '&': 6, '\'': 7, '(': 8, ')': 9,
+    '*': 10, '+': 11, ',': 12, '-': 13, '.': 14, '/': 15,
+    ':': 26, ';': 27, '<': 28, '=': 29, '>': 30, '?': 31,
+    '@': 33, '[': 34, '\\': 35, ']': 62, '^': 63, '_': 64
+  };
+
+  const codePatterns = [
+    '212222', '222122', '222221', '121223', '121322', '131222', '122213', '122312', '132212', '221213',
+    '221312', '231212', '112232', '122132', '122231', '113222', '123122', '123221', '223211', '221132',
+    '221231', '213212', '223112', '312131', '311222', '321122', '321221', '312212', '322112', '322211',
+    '212123', '212321', '232121', '111323', '131123', '131321', '112313', '132113', '132311', '211313',
+    '231113', '231311', '112133', '112331', '132131', '113123', '113321', '133121', '313121', '211331',
+    '231131', '213113', '213311', '213131', '311123', '311321', '331121', '312113', '312311', '332111',
+    '314111', '221411', '431111', '111224', '111422', '121124', '121421', '141122', '141221', '112214',
+    '112412', '122114', '122411', '142112', '142211', '241211', '221114', '413111', '241112', '134111',
+    '111242', '121142', '121241', '114212', '124112', '124211', '411212', '421112', '421211', '212141',
+    '214121', '412121', '111143', '111341', '131141', '114113', '114311', '411113', '411311', '113141',
+    '114131', '311141', '411131', '211412', '211214', '211232', '2331112'
+  ];
+
+  function calculateChecksum(data) {
+    let sum = 104;
+    for (let i = 0; i < data.length; i++) {
+      sum += (i + 1) * data[i];
+    }
+    return sum % 103;
+  }
+
+  const encodedData = [];
+  for (const char of text) {
+    const code = code128A[char];
+    if (code === undefined) {
+      throw new Error(`不支持的字符: ${char}`);
+    }
+    encodedData.push(code);
+  }
+
+  const startCode = 103;
+  const checksum = calculateChecksum([startCode, ...encodedData]);
+  const stopCode = 106;
+  const fullCode = [startCode, ...encodedData, checksum, stopCode];
+
+  let pattern = '';
+  for (const code of fullCode) {
+    pattern += codePatterns[code];
+  }
+
+  const barWidth = pattern.length * scale;
+  const canvas = new OffscreenCanvas(barWidth + 40, height + 20);
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  let x = 20;
+  for (let i = 0; i < pattern.length; i++) {
+    const bar = pattern[i] === '1';
+    const width = parseInt(pattern[i]) * scale;
+    if (bar) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(x, 5, width, height);
+    }
+    x += width;
+  }
+  
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, canvas.width / 2, height + 18);
+
+  const blob = await canvas.convertToBlob({ type: 'image/png' });
+  const buffer = await blob.arrayBuffer();
+  
+  return new Uint8Array(buffer);
+}
+
+/**
+ * 使用 bwip-js 生成条形码（Node.js 环境）
  * @param {string} code - 会员码
  * @returns {Buffer} PNG 图片 Buffer
  */
-async function generateBarcode(code) {
+async function generateBarcodeNode(code) {
   return bwipjs.toBuffer({
     bcid: 'code128',
     text: code,
@@ -22,6 +119,21 @@ async function generateBarcode(code) {
     textxalign: 'center',
     textsize: 12
   });
+}
+
+/**
+ * 生成条形码图片（根据环境选择合适的方法）
+ * @param {string} code - 会员码
+ * @returns {Uint8Array|Buffer} PNG 图片数据
+ */
+async function generateBarcode(code) {
+  if (isCloudflareEnvironment()) {
+    console.log("[ludao] 使用 OffscreenCanvas 生成条形码");
+    return generateBarcodeCanvas(code);
+  } else {
+    console.log("[ludao] 使用 bwip-js 生成条形码");
+    return generateBarcodeNode(code);
+  }
 }
 
 /**
@@ -93,31 +205,26 @@ async function fetchMemberCode() {
 
 /**
  * 获取有效的 MediaId（带缓存）
- * 优先返回缓存中未过期的 MediaId，否则重新生成
  * @returns {Promise<{mediaId: string, memberCode: string}>}
  */
 async function getValidMediaId() {
   const now = Date.now();
   
-  // 检查缓存中是否有有效的 MediaId
   for (const [mediaId, expiresAt] of mediaCache.entries()) {
     if (now < expiresAt) {
       console.log(`[ludao] 使用缓存的 MediaId: ${mediaId}, 剩余有效期：${Math.ceil((expiresAt - now) / 1000)}秒`);
       return { mediaId, fromCache: true };
     } else {
-      // 清理过期缓存
       mediaCache.delete(mediaId);
     }
   }
   
-  // 缓存中没有有效 MediaId，重新获取
   console.log("[ludao] 缓存中没有有效 MediaId，重新获取会员码并生成条形码...");
   
   const memberCode = await fetchMemberCode();
   const barcodeBuffer = await generateBarcode(memberCode);
   const mediaId = await uploadImage(barcodeBuffer, { filename: 'barcode.png' });
   
-  // 存入缓存，设置 1 分钟过期时间
   mediaCache.set(mediaId, now + CACHE_TTL);
   console.log(`[ludao] MediaId 已缓存，有效期至：${new Date(now + CACHE_TTL).toLocaleString()}`);
   
@@ -132,7 +239,6 @@ async function executor(msg) {
   try {
     const { mediaId, memberCode, fromCache } = await getValidMediaId();
     
-    // 如果是从缓存获取的，需要重新获取 memberCode 用于显示
     const displayCode = fromCache ? await fetchMemberCode() : memberCode;
     
     return {
