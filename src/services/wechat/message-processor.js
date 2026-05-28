@@ -71,7 +71,7 @@ async function routeMessage(msg) {
 async function processEncryptedMessage(xml) {
   try {
     const decryptedMsg = await decryptMsg(xml);
-    console.log("[message-processor] 消息解密成功");
+    console.log("[message-processor] 消息解密成功，消息内容:", decryptedMsg);
     return decryptedMsg;
   } catch (error) {
     console.error("[message-processor] 消息解密失败:", error.message);
@@ -97,6 +97,7 @@ async function processMessage(xml, isEncrypted = false) {
     
     // 2. 路由处理
     const replyContent = await routeMessage(msg);
+    console.log(`[message-processor] 路由处理结果: ${replyContent}`);
     
     // 3. 构建回复 XML
     return buildReplyXml(msg, replyContent);
@@ -174,6 +175,7 @@ async function handlePostRequest(body) {
   
   // 检查是否为加密消息
   const isEncrypted = body.includes("<Encrypt><![CDATA[");
+  console.log(`[message-processor] 是否为加密消息: ${isEncrypted}`);
   
   return await processMessage(body, isEncrypted);
 }
