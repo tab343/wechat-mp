@@ -29,7 +29,6 @@ async function verifySignature(signature, timestamp, nonce, token) {
   const arr = [token, timestamp, nonce].sort();
   const str = arr.join("");
   const hash = crypto.createHash("sha1").update(str).digest("hex");
-  console.log(`[message-processor] 计算签名: ${hash}，微信签名: ${signature}`);
   return hash === signature;
 }
 
@@ -87,10 +86,7 @@ async function processEncryptedMessage(xml) {
  * @returns {string} 回复内容
  */
 async function processMessage(xml, isEncrypted = false) {
-  await ensureInit();
-  
   let msg;
-  
   try {
     // 1. 解析或解密消息
     if (isEncrypted) {

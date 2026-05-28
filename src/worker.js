@@ -32,7 +32,7 @@ export default {
     // ✅ 这里判断：如果已经加载过，就永远不再执行！
     if (!initialized && !initializing) {
       initializing = true;
-      console.log("222[worker] 进行初始化操作...");
+      console.log("5555[worker] 进行初始化操作...");
       
       globalThis.env = env;
       await sysConfigCache.loadOnStartup();
@@ -54,6 +54,7 @@ export default {
       // 处理 POST 请求：接收微信用户消息
       if (request.method === "POST") {
         const body = await request.text();
+        console.log('POST body:', body);
         const replyXml = await handlePostRequest(body);
         return new Response(replyXml, { 
           headers: { "Content-Type": "text/xml" }, 
