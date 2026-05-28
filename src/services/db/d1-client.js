@@ -11,7 +11,7 @@ function getCredentials() {
   return {
     accountId: env.CLOUDFLARE_ACCOUNT_ID || "",
     databaseId: env.CLOUDFLARE_D1_DATABASE_ID || "",
-    apiToken: env.CLOUDFLARE_API_TOKEN || "",
+    apiToken: env.CLOUDFLARE_ACCOUNT_API_TOKEN || "",
     
     get apiBase() {
       return `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/d1/database/${this.databaseId}/query`;
