@@ -1,38 +1,9 @@
-import * as bwipjs from "bwip-js";
 import { getApiConfig } from "../api-config-cache.js";
 import { generateCode128Barcode } from "../../utils/barcode-generator.js";
-import { uploadImageToR2 } from "../r2-manager.js";
-import sysConfigCache from "../sys-config-cache.js";
+import { put } from "../../utils/r2-storage.js";
 
 const urlCache = new Map();
 const CACHE_TTL = 60 * 1000;
-
-function isCloudflareEnvironment() {
-  return process.env.CF_PAGES || process.env.CF_WORKER ||
-    (typeof caches !== 'undefined' && typeof fetch !== 'undefined' && typeof Request !== 'undefined');
-}
-
-async function generateBarcodeNode(code) {
-  return bwipjs.toBuffer({
-    bcid: 'code128',
-    text: code,
-    scale: 2,
-    height: 30,
-    includetext: true,
-    textxalign: 'center',
-    textsize: 12
-  });
-}
-
-async function generateBarcode(code) {
-  if (isCloudflareEnvironment()) {
-    console.log("[ludao] 使用纯 JavaScript PNG 生成器");
-    return generateCode128Barcode(code);
-  } else {
-    console.log("[ludao] 使用 bwip-js 生成条形码");
-    return generateBarcodeNode(code);
-  }
-}
 
 async function fetchMemberCode() {
   const config = await getApiConfig("ludao_api");
@@ -98,14 +69,13 @@ async function fetchMemberCode() {
 }
 
 async function getImageUrl(memberCode) {
-  const barcodeBuffer = await generateBarcode(memberCode);
+  const barcodeBuffer = await generateCode128Barcode(memberCode);
+  const key = `ludao/${Date.now()}-${memberCode}.png`;
   
-  const result = await uploadImageToR2(barcodeBuffer, `${memberCode}.png`, {
-    prefix: "ludao",
-    customMetadata: { memberCode }
+  return await put(key, barcodeBuffer, {
+    httpMetadata: { contentType: "image/png" },
+    customMetadata: { memberCode, uploadedAt: new Date().toISOString() }
   });
-  
-  return result.publicUrl;
 }
 
 async function getValidImageUrl(memberCode) {
@@ -113,20 +83,17 @@ async function getValidImageUrl(memberCode) {
 
   for (const [key, data] of urlCache.entries()) {
     if (now < data.expiresAt) {
-      console.log(`[ludao] 使用缓存的图片 URL，剩余有效期：${Math.ceil((data.expiresAt - now) / 1000)}秒`);
+      console.log(`[ludao] 使用缓存的图片 URL`);
       return data.url;
     } else {
       urlCache.delete(key);
     }
   }
 
-  console.log("[ludao] 缓存中没有有效图片 URL，重新生成条形码并上传...");
-
+  console.log("[ludao] 重新生成条形码并上传...");
   const imageUrl = await getImageUrl(memberCode);
 
   urlCache.set(imageUrl, { url: imageUrl, expiresAt: now + CACHE_TTL });
-  console.log(`[ludao] 图片 URL 已缓存，有效期至：${new Date(now + CACHE_TTL).toLocaleString()}`);
-
   return imageUrl;
 }
 
