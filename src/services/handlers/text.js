@@ -51,29 +51,47 @@ async function handleText(msg) {
     const reply = await keywordCache.executeAction(action, msg);
     if (reply) {
       // 支持返回对象类型
-      if (typeof reply === 'object' && reply.type === 'image') {
-        // 使用 MediaId 返回图片消息
-        if (reply.mediaId) {
-          return `<xml>
-            <ToUserName><![CDATA[${msg.FromUserName}]]></ToUserName>
-            <FromUserName><![CDATA[${msg.ToUserName}]]></FromUserName>
-            <CreateTime>${Date.now()}</CreateTime>
-            <MsgType><![CDATA[image]]></MsgType>
-            <Image>
-              <MediaId><![CDATA[${reply.mediaId}]]></MediaId>
-            </Image>
-          </xml>`;
+      if (typeof reply === 'object') {
+        // news 类型消息（直接返回，由上层 buildReplyXml 处理）
+        if (reply.msgType === 'news') {
+          console.log("[消息] 返回 news 类型消息");
+          return reply;
         }
-        // 使用图片URL返回图文消息
+        
+        // image 类型消息
+        if (reply.type === 'image') {
+          // 使用 MediaId 返回图片消息
+          if (reply.mediaId) {
+            return `<xml>
+              <ToUserName><![CDATA[${msg.FromUserName}]]></ToUserName>
+              <FromUserName><![CDATA[${msg.ToUserName}]]></FromUserName>
+              <CreateTime>${Date.now()}</CreateTime>
+              <MsgType><![CDATA[image]]></MsgType>
+              <Image>
+                <MediaId><![CDATA[${reply.mediaId}]]></MediaId>
+              </Image>
+            </xml>`;
+          }
+          // 使用图片URL返回图文消息
+          if (reply.content) {
+            return newsReply(msg, [{
+              title: reply.text || '图片',
+              description: reply.text || '',
+              picUrl: reply.content,
+              url: reply.content
+            }]);
+          }
+        }
+        
+        // 其他对象类型，尝试转换为文本
         if (reply.content) {
-          return newsReply(msg, [{
-            title: reply.text || '图片',
-            description: reply.text || '',
-            picUrl: reply.content,
-            url: reply.content
-          }]);
+          return textReply(msg, reply.content);
         }
+        
+        // 未知对象类型，转换为字符串
+        return textReply(msg, JSON.stringify(reply));
       }
+      
       // 默认返回文本消息
       return textReply(msg, reply);
     }
