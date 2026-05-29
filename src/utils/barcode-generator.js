@@ -6,117 +6,153 @@
  */
 
 /**
- * PNG 生成器内部类
+ * 简单的 DEFLATE 压缩实现 (RFC 1951)
  */
-class PNGGenerator {
-  static crc32Table = (() => {
-    const table = new Uint32Array(256);
-    for (let i = 0; i < 256; i++) {
-      let c = i;
-      for (let j = 0; j < 8; j++) {
-        c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
-      }
-      table[i] = c;
+function deflate(data) {
+  const result = [];
+  
+  // ZLIB header: CMF (Compression Method and Flags)
+  // CM=8 (DEFLATE), CINFO=7 (32K window size)
+  result.push(0x78);
+  // FLG: FCHECK=1 (check bits), FLEVEL=0 (fast compression)
+  result.push(0x01);
+  
+  // 简单的无压缩块 (STORED block)
+  const blockSize = data.length;
+  
+  // Block header: BFINAL=1 (last block), BTYPE=00 (no compression)
+  result.push(0x01);
+  
+  // LEN (little-endian)
+  result.push(blockSize & 0xff);
+  result.push((blockSize >> 8) & 0xff);
+  
+  // NLEN (one's complement of LEN)
+  result.push((~blockSize) & 0xff);
+  result.push(((~blockSize) >> 8) & 0xff);
+  
+  // 原始数据
+  for (let i = 0; i < data.length; i++) {
+    result.push(data[i]);
+  }
+  
+  // Adler-32 checksum
+  let s1 = 1, s2 = 0;
+  for (let i = 0; i < data.length; i++) {
+    s1 = (s1 + data[i]) % 65521;
+    s2 = (s2 + s1) % 65521;
+  }
+  const adler = ((s2 << 16) | s1) >>> 0;
+  
+  result.push((adler >> 24) & 0xff);
+  result.push((adler >> 16) & 0xff);
+  result.push((adler >> 8) & 0xff);
+  result.push(adler & 0xff);
+  
+  return new Uint8Array(result);
+}
+
+/**
+ * CRC32 计算
+ */
+const crc32Table = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) {
+      c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
     }
-    return table;
-  })();
+    table[i] = c;
+  }
+  return table;
+})();
 
-  static crc32(data) {
-    let crc = 0xffffffff;
-    for (let i = 0; i < data.length; i++) {
-      crc = PNGGenerator.crc32Table[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+function crc32(data) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i++) {
+    crc = crc32Table[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * 创建 PNG chunk
+ */
+function createChunk(type, data) {
+  const typeBytes = new TextEncoder().encode(type);
+  const crcData = new Uint8Array(typeBytes.length + data.length);
+  crcData.set(typeBytes);
+  crcData.set(data, typeBytes.length);
+  const crc = crc32(crcData);
+  
+  const chunk = new Uint8Array(4 + 4 + data.length + 4);
+  
+  // Length (4 bytes)
+  const length = new Uint32Array([data.length]);
+  chunk.set(new Uint8Array(length.buffer), 0);
+  
+  // Type (4 bytes)
+  chunk.set(typeBytes, 4);
+  
+  // Data
+  chunk.set(data, 8);
+  
+  // CRC (4 bytes)
+  const crcBytes = new Uint32Array([crc]);
+  chunk.set(new Uint8Array(crcBytes.buffer), 8 + data.length);
+  
+  return chunk;
+}
+
+/**
+ * 创建 PNG 文件
+ */
+function createPNG(width, height, pixels) {
+  // PNG signature
+  const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  
+  // IHDR chunk
+  const ihdrData = new Uint8Array(13);
+  const w = new Uint32Array([width]);
+  const h = new Uint32Array([height]);
+  ihdrData.set(new Uint8Array(w.buffer), 0);
+  ihdrData.set(new Uint8Array(h.buffer), 4);
+  ihdrData[8] = 8;   // bit depth
+  ihdrData[9] = 2;   // color type (RGB)
+  ihdrData[10] = 0;  // compression
+  ihdrData[11] = 0;  // filter
+  ihdrData[12] = 0;  // interlace
+  const ihdr = createChunk('IHDR', ihdrData);
+  
+  // IDAT chunk - 添加 filter bytes
+  const filtered = [];
+  for (let y = 0; y < height; y++) {
+    filtered.push(0); // filter type: None
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 3;
+      filtered.push(pixels[idx]);
+      filtered.push(pixels[idx + 1]);
+      filtered.push(pixels[idx + 2]);
     }
-    return (crc ^ 0xffffffff) >>> 0;
   }
-
-  static createChunk(type, data) {
-    const length = new Uint32Array([data.length]);
-    const typeData = new TextEncoder().encode(type);
-    const crcData = new Uint8Array(typeData.length + data.length);
-    crcData.set(typeData);
-    crcData.set(data, typeData.length);
-    const crc = new Uint32Array([PNGGenerator.crc32(crcData)]);
-    
-    const chunk = new Uint8Array(4 + 4 + data.length + 4);
-    chunk.set(new Uint8Array(length.buffer), 0);
-    chunk.set(typeData, 4);
-    chunk.set(data, 8);
-    chunk.set(new Uint8Array(crc.buffer), 8 + data.length);
-    
-    return chunk;
-  }
-
-  static createIHDR(width, height) {
-    const data = new Uint8Array(13);
-    const w = new Uint32Array([width]);
-    const h = new Uint32Array([height]);
-    data.set(new Uint8Array(w.buffer), 0);
-    data.set(new Uint8Array(h.buffer), 4);
-    data[8] = 8;  // bit depth
-    data[9] = 2;  // color type (RGB)
-    data[10] = 0; // compression
-    data[11] = 0; // filter
-    data[12] = 0; // interlace
-    return PNGGenerator.createChunk('IHDR', data);
-  }
-
-  static createIDAT(rawData, width, height) {
-    const filtered = new Uint8Array((width * 3 + 1) * height);
-    for (let y = 0; y < height; y++) {
-      filtered[y * (width * 3 + 1)] = 0;
-      for (let x = 0; x < width * 3; x++) {
-        filtered[y * (width * 3 + 1) + 1 + x] = rawData[y * width * 3 + x];
-      }
-    }
-    
-    const compressed = PNGGenerator.deflate(filtered);
-    return PNGGenerator.createChunk('IDAT', compressed);
-  }
-
-  static deflate(data) {
-    const result = new Uint8Array(data.length + 6);
-    result[0] = 0x78;
-    result[1] = 0x01;
-    
-    const len = data.length;
-    result[2] = len & 0xff;
-    result[3] = (len >> 8) & 0xff;
-    result[4] = (~len) & 0xff;
-    result[5] = ((~len) >> 8) & 0xff;
-    result.set(data, 6);
-    
-    let s1 = 1, s2 = 0;
-    for (let i = 0; i < data.length; i++) {
-      s1 = (s1 + data[i]) % 65521;
-      s2 = (s2 + s1) % 65521;
-    }
-    const adler = new Uint32Array([((s2 << 16) | s1) >>> 0]);
-    const final = new Uint8Array(result.length + 4);
-    final.set(result);
-    final.set(new Uint8Array(adler.buffer), result.length);
-    
-    return final;
-  }
-
-  static createIEND() {
-    return PNGGenerator.createChunk('IEND', new Uint8Array(0));
-  }
-
-  static createPNG(width, height, pixels) {
-    const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-    const ihdr = PNGGenerator.createIHDR(width, height);
-    const idat = PNGGenerator.createIDAT(pixels, width, height);
-    const iend = PNGGenerator.createIEND();
-    
-    const png = new Uint8Array(signature.length + ihdr.length + idat.length + iend.length);
-    let offset = 0;
-    png.set(signature, offset); offset += signature.length;
-    png.set(ihdr, offset); offset += ihdr.length;
-    png.set(idat, offset); offset += idat.length;
-    png.set(iend, offset);
-    
-    return png;
-  }
+  const compressed = deflate(new Uint8Array(filtered));
+  const idat = createChunk('IDAT', compressed);
+  
+  // IEND chunk
+  const iend = createChunk('IEND', new Uint8Array(0));
+  
+  // 组合所有部分
+  const png = new Uint8Array(
+    signature.length + ihdr.length + idat.length + iend.length
+  );
+  
+  let offset = 0;
+  png.set(signature, offset); offset += signature.length;
+  png.set(ihdr, offset); offset += ihdr.length;
+  png.set(idat, offset); offset += idat.length;
+  png.set(iend, offset);
+  
+  return png;
 }
 
 // 8x8 像素字体
@@ -192,7 +228,7 @@ const CODE_PATTERNS = [
  * 计算 Code128 校验码
  */
 function calculateChecksum(data) {
-  let sum = 104; // Start Code A
+  let sum = 103; // Start Code A
   for (let i = 0; i < data.length; i++) {
     sum += (i + 1) * data[i];
   }
@@ -203,10 +239,12 @@ function calculateChecksum(data) {
  * 生成 Code128 条形码 PNG 图片
  * @param {string} text - 要编码的文本（只支持 Code128A 字符集）
  * @param {number} [scale=2] - 缩放比例
- * @param {number} [height=30] - 条形码高度（像素）
+ * @param {number} [height=50] - 条形码高度（像素）
  * @returns {Uint8Array} PNG 图片数据
  */
-export function generateCode128Barcode(text, scale = 2, height = 30) {
+export function generateCode128Barcode(text, scale = 2, height = 50) {
+  console.log(`[barcode] 生成条形码: ${text}`);
+  
   // 编码文本
   const encodedData = [];
   for (const char of text) {
@@ -232,7 +270,7 @@ export function generateCode128Barcode(text, scale = 2, height = 30) {
   // 计算图片尺寸
   const barWidth = pattern.length * scale;
   const imgWidth = barWidth + 40;
-  const imgHeight = height + 20;
+  const imgHeight = height + 28;
 
   // 创建像素数据 (RGB)
   const pixels = new Uint8Array(imgWidth * imgHeight * 3);
@@ -263,7 +301,7 @@ export function generateCode128Barcode(text, scale = 2, height = 30) {
   }
 
   // 绘制文本
-  const textY = height + 15;
+  const textY = height + 12;
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const charData = FONT[char] || FONT['?'];
@@ -282,7 +320,9 @@ export function generateCode128Barcode(text, scale = 2, height = 30) {
     }
   }
 
-  return PNGGenerator.createPNG(imgWidth, imgHeight, pixels);
+  console.log(`[barcode] 生成 PNG: ${imgWidth}x${imgHeight}, ${pixels.length} bytes`);
+  
+  return createPNG(imgWidth, imgHeight, pixels);
 }
 
 /**
