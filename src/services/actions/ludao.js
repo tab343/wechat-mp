@@ -6,6 +6,14 @@ const urlCache = new Map();
 const CACHE_TTL = 60 * 1000;
 
 async function fetchMemberCode() {
+  const now = Date.now();
+
+  const cached = urlCache.get("memberCode");
+  if (cached && now < cached.expiresAt) {
+    console.log(`[ludao] 使用缓存的会员码: ${cached.code}`);
+    return cached;
+  }
+
   const config = await getApiConfig("ludao_api");
   if (!config) {
     throw new Error("API 配置不存在");
@@ -14,10 +22,6 @@ async function fetchMemberCode() {
   console.log("[ludao] API 配置:", JSON.stringify(config, null, 2));
 
   const { base_url, request_method, param_location, param_key, param_value, extra_headers, extra_body } = config;
-
-  if (!request_method) {
-    throw new Error(`API 配置缺少 request_method 字段。配置内容：${JSON.stringify(config)}`);
-  }
 
   const headers = {};
   if (extra_headers) {
@@ -59,65 +63,60 @@ async function fetchMemberCode() {
   console.log("[ludao] API 响应状态码:", res.status);
   console.log("[ludao] API 响应数据:", JSON.stringify(respData, null, 2));
 
-  if (respData && respData.code === 200 && respData.data?.code) {
-    console.log("[ludao] 成功获取会员码:", respData.data.code);
-    return respData.data.code;
+  if (!respData || respData.code !== 200 || !respData.data?.code) {
+    console.error("[ludao] API 响应不符合预期");
+    throw new Error(respData?.msg || "获取会员码失败");
   }
 
-  console.error("[ludao] API 响应不符合预期");
-  throw new Error(respData?.msg || "获取会员码失败");
-}
+  const memberCode = respData.data.code;
+  console.log("[ludao] 成功获取会员码:", memberCode);
 
-async function getImageUrl(memberCode) {
-  console.log(`[ludao] 生成条形码 SVG，会员码: ${memberCode}`);
-  
   const svgContent = await generateCode128Barcode(memberCode);
   const key = `ludao/${Date.now()}-${memberCode}.svg`;
-  
+
   console.log(`[ludao] 上传 SVG 到 R2: ${key}`);
   const publicUrl = await put(key, svgContent, {
     httpMetadata: { contentType: "image/svg+xml" },
     customMetadata: { memberCode, uploadedAt: new Date().toISOString() }
   });
-  
+
+  console.log(`[ludao] SVG 上传成功: ${publicUrl}`);
+
+  const cachedData = { code: memberCode, imageUrl: publicUrl, expiresAt: now + CACHE_TTL };
+  urlCache.set("memberCode", cachedData);
+
+  return cachedData;
+}
+
+async function getImageUrl(memberCode) {
+  console.log(`[ludao] 生成条形码 SVG，会员码: ${memberCode}`);
+
+  const svgContent = await generateCode128Barcode(memberCode);
+  const key = `ludao/${Date.now()}-${memberCode}.svg`;
+
+  console.log(`[ludao] 上传 SVG 到 R2: ${key}`);
+  const publicUrl = await put(key, svgContent, {
+    httpMetadata: { contentType: "image/svg+xml" },
+    customMetadata: { memberCode, uploadedAt: new Date().toISOString() }
+  });
+
   console.log(`[ludao] SVG 上传成功: ${publicUrl}`);
   return publicUrl;
 }
 
-async function getValidImageUrl(memberCode) {
-  const now = Date.now();
-
-  for (const [key, data] of urlCache.entries()) {
-    if (now < data.expiresAt) {
-      console.log(`[ludao] 使用缓存的图片 URL`);
-      return data.url;
-    } else {
-      urlCache.delete(key);
-    }
-  }
-
-  console.log("[ludao] 重新生成条形码并上传...");
-  const imageUrl = await getImageUrl(memberCode);
-
-  urlCache.set(imageUrl, { url: imageUrl, expiresAt: now + CACHE_TTL });
-  return imageUrl;
-}
-
 async function executor(msg) {
   try {
-    const memberCode = await fetchMemberCode();
-    const imageUrl = await getValidImageUrl(memberCode);
+    const cachedData = await fetchMemberCode();
 
-    // 返回图文消息格式
     return {
       msgType: "news",
       content: `<ArticleCount>1</ArticleCount>
 <Articles>
 <item>
 <Title><![CDATA[您的鹿岛会员码]]></Title>
-<Description><![CDATA[会员码：${memberCode}]]></Description>
-<PicUrl><![CDATA[${imageUrl}]]></PicUrl>
-<Url><![CDATA[${imageUrl}]]></Url>
+<Description><![CDATA[会员码：${cachedData.code}]]></Description>
+<PicUrl><![CDATA[${cachedData.imageUrl}]]></PicUrl>
+<Url><![CDATA[${cachedData.imageUrl}]]></Url>
 </item>
 </Articles>`
     };
