@@ -69,13 +69,22 @@ async function fetchMemberCode() {
 }
 
 async function getImageUrl(memberCode) {
-  const barcodeBuffer = await generateCode128Barcode(memberCode);
-  const key = `ludao/${Date.now()}-${memberCode}.png`;
+  console.log(`[ludao] 生成条形码 SVG，会员码: ${memberCode}`);
   
-  return await put(key, barcodeBuffer, {
-    httpMetadata: { contentType: "image/png" },
+  // 生成 SVG 字符串
+  const svgContent = await generateCode128Barcode(memberCode);
+  const key = `ludao/${Date.now()}-${memberCode}.svg`;
+  
+  console.log(`[ludao] 上传 SVG 到 R2: ${key}`);
+  
+  // 上传 SVG（字符串格式，设置正确的 Content-Type）
+  const publicUrl = await put(key, svgContent, {
+    httpMetadata: { contentType: "image/svg+xml" },
     customMetadata: { memberCode, uploadedAt: new Date().toISOString() }
   });
+  
+  console.log(`[ludao] SVG 上传成功: ${publicUrl}`);
+  return publicUrl;
 }
 
 async function getValidImageUrl(memberCode) {
@@ -102,18 +111,8 @@ async function executor(msg) {
     const memberCode = await fetchMemberCode();
     const imageUrl = await getValidImageUrl(memberCode);
 
-    return {
-      msgType: "news",
-      content: `<ArticleCount>1</ArticleCount>
-<Articles>
-<item>
-<Title><![CDATA[您的鹿岛会员码：${memberCode}]]></Title>
-<Description><![CDATA[会员码：${memberCode}，请出示此码享受服务]]></Description>
-<PicUrl><![CDATA[${imageUrl}]]></PicUrl>
-<Url><![CDATA[${imageUrl}]]></Url>
-</item>
-</Articles>`
-    };
+    // 直接返回包含图片链接的文本消息
+    return `您的鹿岛会员码：${memberCode}\n点击查看条形码：${imageUrl}`;
 
   } catch (error) {
     console.error("[ludao] 获取会员码失败:", error.message);
