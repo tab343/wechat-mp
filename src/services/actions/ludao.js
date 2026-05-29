@@ -4,6 +4,7 @@ import { put } from "../../utils/r2-storage.js";
 
 const urlCache = new Map();
 const CACHE_TTL = 60 * 1000;
+let fetchingPromise = null;
 
 async function fetchMemberCode() {
   const now = Date.now();
@@ -13,6 +14,23 @@ async function fetchMemberCode() {
     console.log(`[ludao] 使用缓存的会员码: ${cached.code}`);
     return cached;
   }
+
+  if (fetchingPromise) {
+    console.log("[ludao] 已有请求进行中，等待结果...");
+    return fetchingPromise;
+  }
+
+  fetchingPromise = doFetchMemberCode();
+  try {
+    const result = await fetchingPromise;
+    return result;
+  } finally {
+    fetchingPromise = null;
+  }
+}
+
+async function doFetchMemberCode() {
+  const now = Date.now();
 
   const config = await getApiConfig("ludao_api");
   if (!config) {
