@@ -1,10 +1,16 @@
 import * as bwipjs from "bwip-js";
 import { getApiConfig } from "../api-config-cache.js";
-import { uploadImage } from "../wechat/media-upload.js";
-import { generateCode128Barcode, isCloudflareEnvironment } from "../../utils/barcode-generator.js";
+import { generateCode128Barcode } from "../../utils/barcode-generator.js";
+import { uploadImageToR2 } from "../r2-manager.js";
+import sysConfigCache from "../sys-config-cache.js";
 
-const mediaCache = new Map();
+const urlCache = new Map();
 const CACHE_TTL = 60 * 1000;
+
+function isCloudflareEnvironment() {
+  return process.env.CF_PAGES || process.env.CF_WORKER ||
+    (typeof caches !== 'undefined' && typeof fetch !== 'undefined' && typeof Request !== 'undefined');
+}
 
 async function generateBarcodeNode(code) {
   return bwipjs.toBuffer({
@@ -86,45 +92,60 @@ async function fetchMemberCode() {
     console.log("[ludao] 成功获取会员码:", respData.data.code);
     return respData.data.code;
   }
-  
+
   console.error("[ludao] API 响应不符合预期");
   throw new Error(respData?.msg || "获取会员码失败");
 }
 
-async function getValidMediaId() {
-  const now = Date.now();
+async function getImageUrl(memberCode) {
+  const barcodeBuffer = await generateBarcode(memberCode);
   
-  for (const [mediaId, expiresAt] of mediaCache.entries()) {
-    if (now < expiresAt) {
-      console.log(`[ludao] 使用缓存的 MediaId: ${mediaId}, 剩余有效期：${Math.ceil((expiresAt - now) / 1000)}秒`);
-      return { mediaId, fromCache: true };
+  const result = await uploadImageToR2(barcodeBuffer, `${memberCode}.png`, {
+    prefix: "ludao",
+    customMetadata: { memberCode }
+  });
+  
+  return result.publicUrl;
+}
+
+async function getValidImageUrl(memberCode) {
+  const now = Date.now();
+
+  for (const [key, data] of urlCache.entries()) {
+    if (now < data.expiresAt) {
+      console.log(`[ludao] 使用缓存的图片 URL，剩余有效期：${Math.ceil((data.expiresAt - now) / 1000)}秒`);
+      return data.url;
     } else {
-      mediaCache.delete(mediaId);
+      urlCache.delete(key);
     }
   }
-  
-  console.log("[ludao] 缓存中没有有效 MediaId，重新获取会员码并生成条形码...");
-  
-  const memberCode = await fetchMemberCode();
-  const barcodeBuffer = await generateBarcode(memberCode);
-  const mediaId = await uploadImage(barcodeBuffer, { filename: 'barcode.png' });
-  
-  mediaCache.set(mediaId, now + CACHE_TTL);
-  console.log(`[ludao] MediaId 已缓存，有效期至：${new Date(now + CACHE_TTL).toLocaleString()}`);
-  
-  return { mediaId, memberCode, fromCache: false };
+
+  console.log("[ludao] 缓存中没有有效图片 URL，重新生成条形码并上传...");
+
+  const imageUrl = await getImageUrl(memberCode);
+
+  urlCache.set(imageUrl, { url: imageUrl, expiresAt: now + CACHE_TTL });
+  console.log(`[ludao] 图片 URL 已缓存，有效期至：${new Date(now + CACHE_TTL).toLocaleString()}`);
+
+  return imageUrl;
 }
 
 async function executor(msg) {
   try {
-    const { mediaId, memberCode, fromCache } = await getValidMediaId();
-    
-    const displayCode = fromCache ? await fetchMemberCode() : memberCode;
-    
+    const memberCode = await fetchMemberCode();
+    const imageUrl = await getValidImageUrl(memberCode);
+
     return {
-      type: "image",
-      mediaId: mediaId,
-      text: `您的鹿岛会员码：${displayCode}`
+      msgType: "news",
+      content: `<ArticleCount>1</ArticleCount>
+<Articles>
+<item>
+<Title><![CDATA[您的鹿岛会员码：${memberCode}]]></Title>
+<Description><![CDATA[会员码：${memberCode}，请出示此码享受服务]]></Description>
+<PicUrl><![CDATA[${imageUrl}]]></PicUrl>
+<Url><![CDATA[${imageUrl}]]></Url>
+</item>
+</Articles>`
     };
 
   } catch (error) {

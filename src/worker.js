@@ -10,6 +10,7 @@ import { handleGetRequest, handlePostRequest } from "./services/wechat/message-p
 import sysConfigCache from "./services/sys-config-cache.js";
 import { keywordCache } from "./services/keyword-cache.js";
 import { registerBusinessActions } from "./services/actions/index.js";
+import { initR2Storage } from "./services/r2-manager.js";
 import { threadId } from 'worker_threads';
 
 // 全局变量，整个 Worker 共享
@@ -36,6 +37,7 @@ export default {
       console.log("[worker] 进行初始化操作...");
       globalThis.env = env;
       await sysConfigCache.loadOnStartup();
+      initR2Storage(env.WECHAT_MP_BUCKET); // 初始化 R2 存储
       await keywordCache.init(registerBusinessActions); // 初始化关键字缓存（包含加载关键字和注册执行器）
       initialized = true;
       initializing = false;
