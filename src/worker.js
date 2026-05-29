@@ -30,15 +30,15 @@ export default {
     const url = new URL(request.url);
 
     // ✅ 这里判断：如果已经加载过，就永远不再执行！
-    if (!initialized && !initializing) {
-      initializing = true;
-      console.log("[worker] 进行初始化操作...");
-      globalThis.env = env;
-      await sysConfigCache.loadOnStartup();
-      await keywordCache.init(registerBusinessActions); // 初始化关键字缓存（包含加载关键字和注册执行器）
-      initialized = true;
-      initializing = false;
-    }
+      if (!initialized && !initializing) {
+        initializing = true;
+        console.log("[worker] 进行初始化操作...");
+        globalThis.env = env;
+        await sysConfigCache.loadOnStartup();
+        await keywordCache.init(registerBusinessActions); // 初始化关键字缓存（包含加载关键字和注册执行器）
+        initialized = true;
+        initializing = false;
+      }
 
 
     try {

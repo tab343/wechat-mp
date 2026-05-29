@@ -6,10 +6,11 @@ import express from "express";
 const router = express.Router();
 
 import sysConfigCache from "../services/sys-config-cache.js";
-import { isConfigured } from "../services/db/d1-client.js";
+import { isConfigured as isDbConfigured } from "../services/db/mp_users-db.js";
 import * as keywordCache from "../services/keyword-cache.js";
 import * as apiConfigCache from "../services/api-config-cache.js";
 import configDb from "../services/db/sys_config-db.js";
+import { userDb } from "../services/db/mp_users-db.js";
 
 router.get("/config", async (req, res) => {
   const all = sysConfigCache.getAll();
@@ -38,20 +39,19 @@ router.post("/config", express.json(), async (req, res) => {
 });
 
 router.get("/users", async (req, res) => {
-  if (!isConfigured()) {
+  if (!isDbConfigured()) {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   try {
-    const { query } = await import("../services/db/d1-client.js");
-    const result = await query("SELECT * FROM mp_users ORDER BY created_at DESC");
-    res.json({ code: 200, data: result.results || [] });
+    const result = await userDb.listActive(1000, 0);
+    res.json({ code: 200, data: result });
   } catch (error) {
     res.status(500).json({ code: 500, msg: "Failed to get users", error: error.message });
   }
 });
 
 router.get("/keywords", async (req, res) => {
-  if (!isConfigured()) {
+  if (!isDbConfigured()) {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   try {
@@ -63,7 +63,7 @@ router.get("/keywords", async (req, res) => {
 });
 
 router.post("/refresh", async (req, res) => {
-  if (!isConfigured()) {
+  if (!isDbConfigured()) {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   const success = await keywordCache.refresh();
@@ -71,7 +71,7 @@ router.post("/refresh", async (req, res) => {
 });
 
 router.get("/api-configs", async (req, res) => {
-  if (!isConfigured()) {
+  if (!isDbConfigured()) {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   try {
@@ -83,7 +83,7 @@ router.get("/api-configs", async (req, res) => {
 });
 
 router.post("/api-configs/:name", express.json(), async (req, res) => {
-  if (!isConfigured()) {
+  if (!isDbConfigured()) {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   try {
@@ -111,7 +111,7 @@ router.post("/api-configs/:name", express.json(), async (req, res) => {
 });
 
 router.get("/api-configs/:name/status", async (req, res) => {
-  if (!isConfigured()) {
+  if (!isDbConfigured()) {
     return res.status(503).json({ error: "D1 数据库未配置" });
   }
   try {

@@ -1,5 +1,5 @@
 import * as apiInfoDb from "./db/sys_api_info-db.js";
-import { isConfigured } from "./db/d1-client.js";
+import { isConfigured } from "./db/sys_api_info-db.js";
 
 const configCache = {};
 let lastLoadTime = null;

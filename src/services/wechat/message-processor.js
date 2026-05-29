@@ -132,10 +132,20 @@ function buildReplyXml(recvMsg, reply) {
 </xml>`.trim();
   }
   
-  // 支持复杂消息类型
-  if (reply.msgType) {
+  // 支持复杂消息类型（同时支持 msgType 和 MsgType）
+  if (reply.msgType || reply.MsgType) {
+    const msgType = reply.msgType || reply.MsgType;
+    
+    // 如果是完整的消息对象（包含 ToUserName 等字段），直接提取内容
+    if (reply.Content !== undefined) {
+      return `${header}
+<MsgType><![CDATA[text]]></MsgType>
+<Content><![CDATA[${reply.Content}]]></Content>
+</xml>`.trim();
+    }
+    
     return `${header}
-<MsgType><![CDATA[${reply.msgType}]]></MsgType>
+<MsgType><![CDATA[${msgType}]]></MsgType>
 ${reply.content}
 </xml>`.trim();
   }

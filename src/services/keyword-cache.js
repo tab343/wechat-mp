@@ -4,7 +4,7 @@
  * 职责：从数据库加载关键字到内存，提供关键字查询和缓存管理功能。
  */
 
-import { keywordDb } from "./db/sys_keywords-db.js";
+import keywordDb from "./db/sys_keywords-db.js";
 
 // 关键字缓存: keyword -> { action, description, isSystem }
 let keywordsCache = new Map();
@@ -24,7 +24,7 @@ let isInitialized = false;
 async function loadFromDatabase() {
 
   try {
-    const keywords = await keywordDb.findAllEnabled();
+    const keywords = await keywordDb.listAll();
     
     keywordsCache.clear();
     actionCache.clear();

@@ -1,11 +1,18 @@
-import { query } from "./d1-client.js";
+/**
+ * API 配置数据库操作（sys_api_info 表）
+ */
 
 async function getApiConfig(name) {
-  const result = await query(
-    "SELECT * FROM sys_api_info WHERE name = ? AND is_enabled = 1",
-    [name]
-  );
-  return result.results?.[0] || null;
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(
+      "SELECT * FROM sys_api_info WHERE name = ? AND is_enabled = 1"
+    ).bind(name).first();
+    
+    return result || null;
+  } catch (error) {
+    console.error(`[sys_api_info-db] 查询 API 配置失败：${error.message}`);
+    return null;
+  }
 }
 
 async function upsertApiConfig(data) {
@@ -21,46 +28,70 @@ async function upsertApiConfig(data) {
     extra_body 
   } = data;
 
-  const result = await query(
-    `INSERT INTO sys_api_info 
-      (name, base_url, request_method, param_location, param_key, param_value, expires_at, extra_headers, extra_body, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(name) DO UPDATE SET 
-        base_url = excluded.base_url,
-        request_method = excluded.request_method,
-        param_location = excluded.param_location,
-        param_key = excluded.param_key,
-        param_value = excluded.param_value,
-        expires_at = excluded.expires_at,
-        extra_headers = excluded.extra_headers,
-        extra_body = excluded.extra_body,
-        updated_at = CURRENT_TIMESTAMP`,
-    [name, base_url, request_method, param_location, param_key, param_value, expires_at, extra_headers, extra_body]
-  );
-  return result;
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(`
+      INSERT INTO sys_api_info 
+        (name, base_url, request_method, param_location, param_key, param_value, expires_at, extra_headers, extra_body, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(name) DO UPDATE SET 
+          base_url = excluded.base_url,
+          request_method = excluded.request_method,
+          param_location = excluded.param_location,
+          param_key = excluded.param_key,
+          param_value = excluded.param_value,
+          expires_at = excluded.expires_at,
+          extra_headers = excluded.extra_headers,
+          extra_body = excluded.extra_body,
+          updated_at = CURRENT_TIMESTAMP
+    `).bind(name, base_url, request_method, param_location, param_key, param_value, expires_at, extra_headers, extra_body).run();
+
+    return { success: true, changes: result.meta?.changes };
+  } catch (error) {
+    console.error(`[sys_api_info-db] 插入 API 配置失败：${error.message}`);
+    return { success: false, message: error.message };
+  }
 }
 
 async function listApiConfigs() {
-  const result = await query("SELECT * FROM sys_api_info ORDER BY name");
-  return result.results || [];
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare("SELECT * FROM sys_api_info ORDER BY name").all();
+    
+    return result.results || [];
+  } catch (error) {
+    console.error(`[sys_api_info-db] 查询 API 配置列表失败：${error.message}`);
+    return [];
+  }
 }
 
 async function updateApiToken(name, token, expires_at) {
-  const result = await query(
-    "UPDATE sys_api_info SET param_value = ?, expires_at = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?",
-    [token, expires_at, name]
-  );
-  return result;
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(
+      "UPDATE sys_api_info SET param_value = ?, expires_at = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?"
+    ).bind(token, expires_at, name).run();
+
+    return { success: true, changes: result.meta?.changes };
+  } catch (error) {
+    console.error(`[sys_api_info-db] 更新 API Token 失败：${error.message}`);
+    return { success: false, message: error.message };
+  }
 }
 
 async function isApiConfigExpired(name) {
-  const result = await query(
-    "SELECT expires_at FROM sys_api_info WHERE name = ? AND is_enabled = 1",
-    [name]
-  );
-  const config = result.results?.[0];
-  if (!config || !config.expires_at) return false;
-  return new Date(config.expires_at) < new Date();
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(
+      "SELECT expires_at FROM sys_api_info WHERE name = ? AND is_enabled = 1"
+    ).bind(name).first();
+    
+    if (!result || !result.expires_at) return false;
+    return new Date(result.expires_at) < new Date();
+  } catch (error) {
+    console.error(`[sys_api_info-db] 检查 API 配置过期失败：${error.message}`);
+    return false;
+  }
+}
+
+function isConfigured() {
+  return !!globalThis.env?.WECHAT_MP_DB;
 }
 
 export {
@@ -68,5 +99,6 @@ export {
   upsertApiConfig,
   listApiConfigs,
   updateApiToken,
-  isApiConfigExpired
+  isApiConfigExpired,
+  isConfigured,
 };

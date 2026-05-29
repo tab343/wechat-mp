@@ -1,81 +1,115 @@
-import { query } from "./d1-client.js";
-
 /**
  * 用户数据库操作（mp_users 表）
- *
- * All methods return business-friendly results, not exposing underlying D1 implementation details.
  */
 
-// ── Insert / Update ────────────────────────────────────────
-
-/**
- * Called when user subscribes: insert or update user record
- * Users who have subscribed before (including those who unsubscribed) will have their status updated using ON CONFLICT
- */
 async function upsertBySubscribe(wechatOpenid, sceneId = null) {
-  console.log(`[mp_users-db] Record subscribe: ${wechatOpenid}`);
+  console.log(`[mp_users-db] 用户关注落库：openid=${wechatOpenid}, sceneId=${sceneId}`);
 
-  return query(
-    `INSERT INTO mp_users (wechat_openid, subscribe_time, scene_id, is_subscribed)
-     VALUES (?, datetime('now'), ?, 1)
-     ON CONFLICT(wechat_openid) DO UPDATE SET
-       subscribe_time = datetime('now'),
-       scene_id = COALESCE(?, scene_id),
-       is_subscribed = 1,
-       unsubscribe_time = NULL,
-       updated_at = datetime('now')`,
-    [wechatOpenid, sceneId, sceneId]
-  );
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(`
+      INSERT INTO mp_users (wechat_openid, subscribe_time, scene_id, is_subscribed)
+      VALUES (?, datetime('now'), ?, 1)
+      ON CONFLICT(wechat_openid) DO UPDATE SET
+        subscribe_time = datetime('now'),
+        scene_id = COALESCE(?, scene_id),
+        is_subscribed = 1,
+        unsubscribe_time = NULL,
+        updated_at = datetime('now')
+    `).bind(wechatOpenid, sceneId, sceneId).run();
+
+    console.log(`[mp_users-db] 用户落库成功：${wechatOpenid}`);
+    return { success: true, message: "用户落库成功", changes: result.meta?.changes };
+  } catch (error) {
+    console.error(`[mp_users-db] 用户落库失败：${error.message}`);
+    return { success: false, message: error.message };
+  }
 }
 
-/**
- * Called when user unsubscribes: mark as unsubscribed
- */
 async function markUnsubscribed(wechatOpenid) {
-  console.log(`[mp_users-db] Mark unsubscribed: ${wechatOpenid}`);
+  console.log(`[mp_users-db] 用户取消关注：${wechatOpenid}`);
 
-  return query(
-    `UPDATE mp_users
-     SET is_subscribed = 0,
-         unsubscribe_time = datetime('now'),
-         updated_at = datetime('now')
-     WHERE wechat_openid = ?`,
-    [wechatOpenid]
-  );
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(`
+      UPDATE mp_users
+      SET is_subscribed = 0,
+          unsubscribe_time = datetime('now'),
+          updated_at = datetime('now')
+      WHERE wechat_openid = ?
+    `).bind(wechatOpenid).run();
+
+    console.log(`[mp_users-db] 标记取消关注成功：${wechatOpenid}`);
+    return { success: true, message: "标记成功", changes: result.meta?.changes };
+  } catch (error) {
+    console.error(`[mp_users-db] 标记取消关注失败：${error.message}`);
+    return { success: false, message: error.message };
+  }
 }
 
-// ── Query ──────────────────────────────────────────────────
-
-/**
- * Find single user record by WeChat OpenID
- */
 async function findByOpenid(wechatOpenid) {
-  const result = await query(
-    "SELECT * FROM mp_users WHERE wechat_openid = ?",
-    [wechatOpenid]
-  );
-  return result.results?.[0] || null;
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(
+      "SELECT * FROM mp_users WHERE wechat_openid = ?"
+    ).bind(wechatOpenid).first();
+    
+    return result || null;
+  } catch (error) {
+    console.error(`[mp_users-db] 查询用户失败：${error.message}`);
+    return null;
+  }
 }
 
-/**
- * Paginated query for currently subscribed users
- */
 async function listActive(limit = 100, offset = 0) {
-  const result = await query(
-    "SELECT * FROM mp_users WHERE is_subscribed = 1 ORDER BY subscribe_time DESC LIMIT ? OFFSET ?",
-    [limit, offset]
-  );
-  return result.results || [];
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(`
+      SELECT * FROM mp_users 
+      WHERE is_subscribed = 1 
+      ORDER BY subscribe_time DESC 
+      LIMIT ? OFFSET ?
+    `).bind(limit, offset).all();
+    
+    return result.results || [];
+  } catch (error) {
+    console.error(`[mp_users-db] 查询用户列表失败：${error.message}`);
+    return [];
+  }
 }
 
-/**
- * Count currently subscribed users
- */
 async function countActive() {
-  const result = await query(
-    "SELECT COUNT(*) AS total FROM mp_users WHERE is_subscribed = 1"
-  );
-  return result.results?.[0]?.total || 0;
+  try {
+    const result = await globalThis.env?.WECHAT_MP_DB?.prepare(
+      "SELECT COUNT(*) AS total FROM mp_users WHERE is_subscribed = 1"
+    ).first();
+    
+    return result?.total || 0;
+  } catch (error) {
+    console.error(`[mp_users-db] 统计用户失败：${error.message}`);
+    return 0;
+  }
+}
+
+async function getStats() {
+  try {
+    const [totalResult, activeResult] = await Promise.all([
+      globalThis.env?.WECHAT_MP_DB?.prepare("SELECT COUNT(*) AS total FROM mp_users").first(),
+      globalThis.env?.WECHAT_MP_DB?.prepare("SELECT COUNT(*) AS active FROM mp_users WHERE is_subscribed = 1").first()
+    ]);
+
+    const total = totalResult?.total || 0;
+    const active = activeResult?.active || 0;
+
+    return {
+      total,
+      active,
+      inactive: total - active
+    };
+  } catch (error) {
+    console.error("[mp_users-db] 获取统计失败:", error.message);
+    return { total: 0, active: 0, inactive: 0 };
+  }
+}
+
+function isConfigured() {
+  return !!globalThis.env?.WECHAT_MP_DB;
 }
 
 export const userDb = {
@@ -84,4 +118,6 @@ export const userDb = {
   findByOpenid,
   listActive,
   countActive,
+  getStats,
+  isConfigured,
 };
